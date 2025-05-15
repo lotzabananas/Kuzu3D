@@ -7,61 +7,27 @@
 
 import * as THREE from 'three';
 
-import { XRDevice, metaQuest3 } from 'iwer';
-
-import { DevUI } from '@iwer/devui';
-import { GamepadWrapper } from 'gamepad-wrapper';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// Removed iwer, DevUI, GamepadWrapper, OrbitControls for PoC simplicity
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 
 export async function init(setupScene = () => {}, onFrame = () => {}) {
-	// iwer setup
-	let nativeWebXRSupport = false;
-	if (navigator.xr) {
-		nativeWebXRSupport = await navigator.xr.isSessionSupported('immersive-vr');
-	}
-	if (!nativeWebXRSupport) {
-		const xrDevice = new XRDevice(metaQuest3);
-		xrDevice.installRuntime();
-		xrDevice.fovy = (75 / 180) * Math.PI;
-		xrDevice.ipd = 0;
-		window.xrdevice = xrDevice;
-		xrDevice.controllers.right.position.set(0.15649, 1.43474, -0.38368);
-		xrDevice.controllers.right.quaternion.set(
-			0.14766305685043335,
-			0.02471366710960865,
-			-0.0037767395842820406,
-			0.9887216687202454,
-		);
-		xrDevice.controllers.left.position.set(-0.15649, 1.43474, -0.38368);
-		xrDevice.controllers.left.quaternion.set(
-			0.14766305685043335,
-			0.02471366710960865,
-			-0.0037767395842820406,
-			0.9887216687202454,
-		);
-		new DevUI(xrDevice);
-	}
-
 	const container = document.createElement('div');
 	document.body.appendChild(container);
 
 	const scene = new THREE.Scene();
-	scene.background = new THREE.Color(0x808080);
+	// A light gray background is less stark than black for initial viewing
+	scene.background = new THREE.Color(0x444444); 
 
 	const camera = new THREE.PerspectiveCamera(
-		50,
-		window.innerWidth / window.innerHeight,
-		0.1,
-		100,
+		50, // Field of View
+		window.innerWidth / window.innerHeight, // Aspect Ratio
+		0.1, // Near clipping plane
+		100, // Far clipping plane (adjust as needed for Kùzu graph scale)
 	);
-	camera.position.set(0, 1.6, 3);
-
-	const controls = new OrbitControls(camera, container);
-	controls.target.set(0, 1.6, 0);
-	controls.update();
+	// Default camera position, user will move in VR
+	camera.position.set(0, 1.6, 0.5); // Slightly in front of origin, at typical eye height
 
 	const renderer = new THREE.WebGLRenderer({ antialias: true });
 	renderer.setPixelRatio(window.devicePixelRatio);
@@ -69,50 +35,53 @@ export async function init(setupScene = () => {}, onFrame = () => {}) {
 	renderer.xr.enabled = true;
 	container.appendChild(renderer.domElement);
 
+	// Basic environment lighting
 	const environment = new RoomEnvironment(renderer);
 	const pmremGenerator = new THREE.PMREMGenerator(renderer);
 	scene.environment = pmremGenerator.fromScene(environment).texture;
+	pmremGenerator.dispose(); // Dispose of PMREMGenerator after use
+	environment.dispose(); // Dispose of RoomEnvironment after use
 
+
+	// Player group to move camera and controllers together
 	const player = new THREE.Group();
 	scene.add(player);
-	player.add(camera);
+	player.add(camera); // Attach camera to player group
 
+	// Basic controller setup
 	const controllerModelFactory = new XRControllerModelFactory();
 	const controllers = {
 		left: null,
 		right: null,
 	};
-	for (let i = 0; i < 2; i++) {
-		const raySpace = renderer.xr.getController(i);
-		const gripSpace = renderer.xr.getControllerGrip(i);
-		const mesh = controllerModelFactory.createControllerModel(gripSpace);
-		gripSpace.add(mesh);
-		player.add(raySpace, gripSpace);
-		raySpace.visible = false;
-		gripSpace.visible = false;
-		gripSpace.addEventListener('connected', (e) => {
-			raySpace.visible = true;
-			gripSpace.visible = true;
-			const handedness = e.data.handedness;
-			controllers[handedness] = {
-				raySpace,
-				gripSpace,
-				mesh,
-				gamepad: new GamepadWrapper(e.data.gamepad),
-			};
-		});
-		gripSpace.addEventListener('disconnected', (e) => {
-			raySpace.visible = false;
-			gripSpace.visible = false;
-			const handedness = e.data.handedness;
-			controllers[handedness] = null;
-		});
-	}
+
+	// Setup for controller 0 (typically left)
+	const controllerGrip0 = renderer.xr.getControllerGrip(0);
+	controllerGrip0.add(controllerModelFactory.createControllerModel(controllerGrip0));
+	player.add(controllerGrip0);
+	renderer.xr.getController(0).addEventListener('connected', (event) => {
+		controllers.left = { grip: controllerGrip0, gamepad: event.data.gamepad }; 
+		// We can add more specific controller setup here if needed later
+	});
+	renderer.xr.getController(0).addEventListener('disconnected', () => {
+		controllers.left = null;
+	});
+
+	// Setup for controller 1 (typically right)
+	const controllerGrip1 = renderer.xr.getControllerGrip(1);
+	controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+	player.add(controllerGrip1);
+	renderer.xr.getController(1).addEventListener('connected', (event) => {
+		controllers.right = { grip: controllerGrip1, gamepad: event.data.gamepad };
+		// We can add more specific controller setup here if needed later
+	});
+	renderer.xr.getController(1).addEventListener('disconnected', () => {
+		controllers.right = null;
+	});
 
 	function onWindowResize() {
 		camera.aspect = window.innerWidth / window.innerHeight;
 		camera.updateProjectionMatrix();
-
 		renderer.setSize(window.innerWidth, window.innerHeight);
 	}
 
@@ -126,22 +95,24 @@ export async function init(setupScene = () => {}, onFrame = () => {}) {
 		controllers,
 	};
 
+	// Call the user-provided setup function
 	setupScene(globals);
 
 	const clock = new THREE.Clock();
 	function animate() {
 		const delta = clock.getDelta();
 		const time = clock.getElapsedTime();
-		Object.values(controllers).forEach((controller) => {
-			if (controller?.gamepad) {
-				controller.gamepad.update();
-			}
-		});
+		
+		// Call user-provided frame update function
 		onFrame(delta, time, globals);
+
+		// Render the scene
 		renderer.render(scene, camera);
 	}
 
+	// Start the animation loop
 	renderer.setAnimationLoop(animate);
 
+	// Add VR button to the DOM
 	document.body.appendChild(VRButton.createButton(renderer));
 }
