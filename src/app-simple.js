@@ -57,22 +57,13 @@ class KuzuVRApp {
 		const dbPathInput = document.getElementById('db-path');
 		const statusDiv = document.getElementById('status');
 		const uiContainer = document.getElementById('ui-container');
-		const passthroughToggle = document.getElementById('passthrough-toggle');
 		
 		// Database loading
 		loadButton.addEventListener('click', async () => {
 			await this.loadDatabase(dbPathInput.value, statusDiv, uiContainer);
 		});
 		
-		// Passthrough toggle
-		passthroughToggle.addEventListener('change', (e) => {
-			if (this.sceneManager) {
-				this.sceneManager.setPassthrough(e.target.checked);
-			}
-		});
-		
-		// Start with passthrough enabled
-		this.sceneManager?.setPassthrough(true);
+		// Scene manager will handle passthrough based on XR mode
 	}
 	
 	async loadDatabase(dbPath, statusDiv, uiContainer) {
@@ -118,9 +109,9 @@ class KuzuVRApp {
 				this.uiManager.updateDatabaseStatus(true, nodes.length);
 			}
 			
-			// Hide UI after delay
+			// Hide UI after delay with fade animation
 			setTimeout(() => {
-				uiContainer.style.display = 'none';
+				uiContainer.classList.add('hidden');
 			}, UI_CONFIG.hideDelay);
 			
 			logger.info(`Loaded ${nodes.length} nodes successfully`);

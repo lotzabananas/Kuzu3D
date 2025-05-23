@@ -1,9 +1,9 @@
 // Unified XR button that supports both VR and AR modes
 class XRButton {
-	static createButton(renderer, sessionInit = {}) {
+	static createButton(renderer, sessionInit = {}, forceMode = null) {
 		const button = document.createElement('button');
 		let currentSession = null;
-		let sessionMode = null; // Will be determined based on device support
+		let sessionMode = forceMode; // Can be forced to 'immersive-ar' or 'immersive-vr'
 		
 		function showStartXR(mode) {
 			sessionMode = mode;
@@ -122,21 +122,33 @@ class XRButton {
 			
 			stylizeElement(button);
 			
-			// Check for both AR and VR support
-			Promise.all([
-				navigator.xr.isSessionSupported('immersive-ar'),
-				navigator.xr.isSessionSupported('immersive-vr')
-			]).then(([arSupported, vrSupported]) => {
-				if (arSupported) {
-					// Prefer AR for passthrough on Quest 3
-					showStartXR('immersive-ar');
-				} else if (vrSupported) {
-					// Fall back to VR
-					showStartXR('immersive-vr');
-				} else {
-					showXRNotSupported();
-				}
-			}).catch(showXRNotSupported);
+			// If mode is forced, check only that mode
+			if (forceMode) {
+				navigator.xr.isSessionSupported(forceMode)
+					.then(supported => {
+						if (supported) {
+							showStartXR(forceMode);
+						} else {
+							showXRNotSupported();
+						}
+					}).catch(showXRNotSupported);
+			} else {
+				// Check for both AR and VR support
+				Promise.all([
+					navigator.xr.isSessionSupported('immersive-ar'),
+					navigator.xr.isSessionSupported('immersive-vr')
+				]).then(([arSupported, vrSupported]) => {
+					if (vrSupported) {
+						// Default to VR
+						showStartXR('immersive-vr');
+					} else if (arSupported) {
+						// Fall back to AR
+						showStartXR('immersive-ar');
+					} else {
+						showXRNotSupported();
+					}
+				}).catch(showXRNotSupported);
+			}
 			
 			return button;
 		} else {

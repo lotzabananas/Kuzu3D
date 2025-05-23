@@ -51,12 +51,12 @@ export class SceneManager {
 		            (session.environmentBlendMode && session.environmentBlendMode !== 'opaque');
 		
 		if (isAR) {
-			console.log('AR mode detected - forcing passthrough');
+			console.log('AR mode detected - enabling passthrough');
 			this.setPassthrough(true);
 		} else {
-			console.log('VR mode detected');
-			// Respect user's passthrough preference in VR mode
-			this.setPassthrough(this.isPassthroughEnabled);
+			console.log('VR mode detected - disabling passthrough');
+			// In VR mode, disable passthrough for proper VR background
+			this.setPassthrough(false);
 		}
 	}
 	

@@ -127,11 +127,18 @@ export async function init(setupScene = () => {}, onFrame = () => {}) {
 	// Start the animation loop
 	renderer.setAnimationLoop(animate);
 
-	// Add XR button that supports both AR and VR modes
+	// Add separate VR and AR buttons
 	const sessionInit = {
 		domOverlay: { root: document.body }
 	};
 	
-	const xrButton = XRButton.createButton(renderer, sessionInit);
-	document.body.appendChild(xrButton);
+	// Create VR button
+	const vrButton = XRButton.createButton(renderer, sessionInit, 'immersive-vr');
+	vrButton.style.left = 'calc(50% - 110px)';
+	document.body.appendChild(vrButton);
+	
+	// Create AR button
+	const arButton = XRButton.createButton(renderer, sessionInit, 'immersive-ar');
+	arButton.style.left = 'calc(50% + 10px)';
+	document.body.appendChild(arButton);
 }

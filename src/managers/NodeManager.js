@@ -36,10 +36,8 @@ export class NodeManager {
 	}
 	
 	update(deltaTime) {
-		// Rotate the entire node group for visual interest
-		if (this.nodes.length > 0) {
-			this.nodeGroup.rotation.y += deltaTime * VISUAL_CONFIG.animation.rotationSpeed;
-		}
+		// Node updates without rotation - spinning animation removed
+		// Individual nodes can still have their own animations if needed
 	}
 	
 	handleHover(object) {

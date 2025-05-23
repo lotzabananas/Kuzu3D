@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SimpleWristUI } from '../components/SimpleWristUI.js';
-import { SimpleTwoHandManipulation } from '../components/SimpleTwoHandManipulation.js';
+import { ManipulationController } from '../components/ManipulationController.js';
 import { logger } from '../utils/Logger.js';
 
 export class UIManagerBasic {
@@ -12,10 +12,13 @@ export class UIManagerBasic {
 		
 		// Simple components
 		this.wristUI = new SimpleWristUI();
-		this.twoHandManip = new SimpleTwoHandManipulation();
+		this.manipulationController = new ManipulationController();
 		
-		// Add wrist UI to scene
-		this.scene.add(this.wristUI.getContainer());
+		// Add wrist UI to scene (temporarily disabled)
+		// this.scene.add(this.wristUI.getContainer());
+		
+		// Add manipulation controller visual feedback to scene
+		this.manipulationController.addToScene(scene);
 		
 		// Simple state
 		this.hoveredNode = null;
@@ -42,16 +45,14 @@ export class UIManagerBasic {
 			this.debugLogged = true;
 		}
 		
-		// Update wrist UI
-		this.wristUI.update(leftHand, camera);
+		// Update wrist UI (temporarily disabled)
+		// this.wristUI.update(leftHand, camera);
 		
-		// Update two-hand manipulation
-		if (nodeManager && nodeManager.nodeGroup) {
-			this.twoHandManip.update(leftHand, rightHand, nodeManager.nodeGroup);
-		}
+		// Update manipulation controller (handles all node interaction)
+		this.manipulationController.update(leftHand, rightHand, nodeManager, deltaTime);
 		
-		// Check wrist UI button clicks
-		this.checkWristUIClicks(rightHand, nodeManager);
+		// Check wrist UI button clicks (temporarily disabled)
+		// this.checkWristUIClicks(rightHand, nodeManager);
 		
 		// Simple hand tracking update for node selection
 		if (this.handTracking && nodeManager) {
@@ -151,6 +152,7 @@ export class UIManagerBasic {
 	}
 	
 	dispose() {
-		// Clean up
+		this.manipulationController.removeFromScene(this.scene);
+		this.manipulationController.dispose();
 	}
 }

@@ -22,7 +22,8 @@ export class HandTracking {
 		this.hands.left = hand0;
 		this.player.add(hand0);
 		
-		const handModel0 = this.handModelFactory.createHandModel(hand0, 'mesh');
+		// Use boxes instead of mesh for more reliable hand tracking
+		const handModel0 = this.handModelFactory.createHandModel(hand0, 'boxes');
 		hand0.add(handModel0);
 		this.handModels.left = handModel0;
 		
@@ -31,7 +32,8 @@ export class HandTracking {
 		this.hands.right = hand1;
 		this.player.add(hand1);
 		
-		const handModel1 = this.handModelFactory.createHandModel(hand1, 'mesh');
+		// Use boxes instead of mesh for more reliable hand tracking
+		const handModel1 = this.handModelFactory.createHandModel(hand1, 'boxes');
 		hand1.add(handModel1);
 		this.handModels.right = handModel1;
 		

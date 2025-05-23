@@ -1,51 +1,77 @@
-# CLAUDE.md
+# Kùzu Explore 3D VR - Project Context for Claude
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Project Overview
+Kùzu Explore 3D VR is a VR/AR application for visualizing and exploring graph databases in 3D space using Meta Quest 3. The project focuses on natural hand-tracking interactions for manipulating graph nodes and exploring relationships in an immersive environment.
 
-## Commands
+## Current Status
+- Basic node visualization working with sample data
+- Two-hand manipulation implemented (scale and rotate)
+- AR passthrough mode functional
+- Working on: Natural node movement system with finger-based interaction
 
-### Development
-- `npm run dev` - Start the development server (https://localhost:8081)
-- `npm run build` - Build the project for production
-- `npm run format` - Format all source files with Prettier
+## Architecture
+- **Framework**: Three.js with WebXR
+- **Database**: Kùzu graph database (embedded via WebAssembly)
+- **Platform**: Meta Quest 3 with hand tracking
+- **Key Managers**:
+  - `NodeManager`: Handles graph node creation and updates
+  - `SceneManager`: Manages 3D scene and AR passthrough
+  - `UIManagerBasic`: Handles hand tracking and manipulation
+  - `DataService`: Interfaces with Kùzu database
 
-### Dependencies
-- `npm install` - Install all dependencies
+## Key Features to Implement
+1. **Node Movement System** (In Progress)
+   - Natural finger-based grabbing and movement
+   - Individual node manipulation
+   - Scalable for large graph visualizations
 
-## Architecture Overview
+2. **Graph Relationships**
+   - Visualize edges between nodes
+   - Show relationship types and properties
+   - Interactive edge exploration
 
-This is a WebXR Proof of Concept for visualizing Kùzu graph database nodes in 3D VR space. The project uses:
+3. **Cypher Query Integration**
+   - Full Cypher query system in VR
+   - Real-time query execution
+   - Visual query results
 
-- **Three.js** for 3D rendering and WebXR integration
-- **Webpack** for bundling with HTTPS dev server (required for WebXR)
-- **Kùzu** database library for graph data access
+4. **UI Improvements**
+   - Better hand tracking feedback
+   - Improved manipulation controls
+   - Query interface in VR
 
-### Key Components
+## Development Commands
+```bash
+# Start development server
+npm run dev
 
-1. **src/init.js** - Core WebXR and Three.js scene initialization
-   - Sets up VR environment, camera, controllers
-   - Manages render loop and VR button
-   - Provides `globals` object with scene, camera, renderer, player, controllers
+# The app runs on local network for Quest 3 testing
+# Access via: https://[local-ip]:8080
+```
 
-2. **src/index.js** - Main entry point
-   - `setupScene()` - Called once after scene initialization (node visualization logic goes here)
-   - `onFrame()` - Called every frame for updates
+## Testing
+- Direct testing on Quest 3 headset via local network
+- Ensure HTTPS is enabled (required for WebXR)
+- Hand tracking must be enabled in Quest settings
 
-3. **WebXR Configuration**
-   - HTTPS required (dev server uses port 8081)
-   - VR controllers automatically detected and added to scene
-   - Basic environment lighting included
+## Current Challenges
+1. Node movement needs to feel more natural and responsive
+2. UI system needs refinement for better usability
+3. Scaling visualization for large graphs
+4. Implementing edge visualization between nodes
 
-### Current PoC Goals
+## Important Notes
+- Always test on actual Quest 3 hardware (WebXR simulators don't fully replicate hand tracking)
+- Passthrough mode is enabled by default for AR experience
+- The app uses a simplified architecture (app-simple.js) for the proof of concept
 
-1. Connect to local Kùzu database
-2. Extract node data (no edges/properties yet)
-3. Render nodes as simple 3D spheres
-4. Allow basic VR viewing and navigation
+## Recent Work
+- Removed node spinning animation for cleaner visualization
+- Working on natural node grabbing with pinch gestures
+- Implementing individual node movement system
 
-### Development Notes
-
-- The project is set up for WebXR compatibility across different VR headsets
-- Controller models are automatically loaded when connected
-- Scene uses a gray background (0x444444) for comfortable VR viewing
-- Camera starts at typical standing eye height (y=1.6)
+## Next Steps
+1. Complete natural node movement with finger tracking
+2. Add edge visualization between related nodes
+3. Implement basic Cypher query interface
+4. Optimize for larger graph datasets
