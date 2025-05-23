@@ -16,6 +16,7 @@
 	</head>
 	<body style="margin: 0">
 		<div
+			id="ui-container"
 			style="
 				position: fixed;
 				top: 10px;
@@ -25,9 +26,22 @@
 				justify-content: center;
 				align-items: center;
 				color: white;
+				z-index: 999;
 			"
 		>
 			<h1>Kùzu Explore 3D VR</h1>
+			<div id="db-selector" style="margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.8); border-radius: 10px;">
+				<label for="db-path">Database Path:</label>
+				<input type="text" id="db-path" placeholder="Enter path or 'mock' for demo" style="width: 300px; margin: 0 10px; padding: 5px;">
+				<button id="load-db" style="padding: 5px 15px;">Load Nodes</button>
+				<div style="margin-top: 10px;">
+					<label>
+						<input type="checkbox" id="passthrough-toggle" checked>
+						Enable Passthrough (AR Mode)
+					</label>
+				</div>
+				<div id="status" style="margin-top: 10px; font-size: 14px;"></div>
+			</div>
 		</div>
 		<script type="module" src="./index.js"></script>
 	</body>

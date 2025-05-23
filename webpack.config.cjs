@@ -17,8 +17,16 @@ module.exports = {
 		compress: true,
 		port: 8081,
 		client: {
-			overlay: { warnings: false, errors: true },
+			overlay: { warnings: false, errors: false },
 		},
+		proxy: [
+			{
+				context: ['/api'],
+				target: 'http://localhost:3000',
+				secure: false,
+				changeOrigin: true
+			}
+		]
 	},
 	output: {
 		filename: '[name].bundle.js',

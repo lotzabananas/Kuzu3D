@@ -13,12 +13,16 @@
 		"webpack-cli": "5.1.4",
 		"webpack-dev-server": "5.1.0"
 	},
+	"type": "module",
 	"scripts": {
 		"build": "webpack",
 		"dev": "webpack serve",
+		"server": "node src/server.js",
 		"format": "prettier --write ./src/**/*"
 	},
 	"dependencies": {
+		"cors": "^2.8.5",
+		"express": "^4.18.2",
 		"kuzu": "^0.10.0",
 		"three": "0.165.0"
 	}
