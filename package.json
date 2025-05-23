@@ -15,15 +15,21 @@
 	},
 	"type": "module",
 	"scripts": {
-		"build": "webpack",
+		"build": "webpack --config webpack.prod.cjs",
+		"build:dev": "webpack",
 		"dev": "webpack serve",
 		"server": "node src/server.js",
-		"format": "prettier --write ./src/**/*"
+		"server:prod": "NODE_ENV=production node src/server.js",
+		"format": "prettier --write ./src/**/*",
+		"lint": "eslint src/**/*.js",
+		"start": "npm run server:prod",
+		"preview": "npm run build && npm run start"
 	},
 	"dependencies": {
 		"cors": "^2.8.5",
 		"express": "^4.18.2",
 		"kuzu": "^0.10.0",
-		"three": "0.165.0"
+		"three": "0.165.0",
+		"three-mesh-ui": "^6.5.4"
 	}
 }

@@ -6,7 +6,7 @@ const CopyPlugin = require('copy-webpack-plugin');
 module.exports = {
 	mode: 'development',
 	entry: {
-		index: './src/index.js',
+		index: './src/app-simple.js',
 	},
 	devServer: {
 		static: {

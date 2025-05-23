@@ -37,11 +37,21 @@ export class HandTracking {
 		
 		// Add hand tracking events
 		hand0.addEventListener('connected', (_event) => {
-			console.log('Left hand connected');
+			console.log('Left hand connected - hand tracking active');
+			this.hands.left.isConnected = true;
 		});
 		
 		hand1.addEventListener('connected', (_event) => {
-			console.log('Right hand connected');
+			console.log('Right hand connected - hand tracking active');
+			this.hands.right.isConnected = true;
+		});
+		
+		hand0.addEventListener('disconnected', () => {
+			this.hands.left.isConnected = false;
+		});
+		
+		hand1.addEventListener('disconnected', () => {
+			this.hands.right.isConnected = false;
 		});
 	}
 	
