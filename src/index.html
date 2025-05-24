@@ -207,10 +207,23 @@
 			
 			<div class="main-panel">
 				<div class="input-group">
-					<label for="db-path">Database Path</label>
+					<label for="db-select">Select Database</label>
 					<div class="input-wrapper">
-						<input type="text" id="db-path" placeholder="Enter path or 'mock' for demo" value="mock">
-						<button id="load-db">Load Nodes</button>
+						<select id="db-select" style="flex: 1; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #fff; font-size: 1rem;">
+							<option value="demo">Demo (20 nodes)</option>
+							<option value="social-network">Social Network (100+ nodes)</option>
+							<option value="knowledge-graph">Computer Science Knowledge Graph (100+ nodes)</option>
+							<option value="movie-database">Movie Database (100+ nodes)</option>
+						</select>
+						<button id="load-db">Load Database</button>
+					</div>
+				</div>
+				
+				<div class="input-group" style="margin-top: 1rem; display: none;" id="custom-db-group">
+					<label for="db-path">Custom Database Path</label>
+					<div class="input-wrapper">
+						<input type="text" id="db-path" placeholder="Enter Kùzu database path">
+						<button id="load-custom">Connect</button>
 					</div>
 				</div>
 				

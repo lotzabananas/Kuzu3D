@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
+import { GestureDetector } from './components/GestureDetector.js';
+import { GestureVisualizer } from './components/GestureVisualizer.js';
 
 export class HandTracking {
 	constructor(renderer, player) {
@@ -11,6 +13,11 @@ export class HandTracking {
 		this.raycasters = { left: new THREE.Raycaster(), right: new THREE.Raycaster() };
 		this.pointerLines = { left: null, right: null };
 		this.hoveredObject = null;
+		
+		// Gesture detection
+		this.gestureDetector = new GestureDetector();
+		this.gestureVisualizer = new GestureVisualizer();
+		this.gestureCallbacks = new Map();
 		
 		this.setupHands();
 		this.createPointerLines();
@@ -159,7 +166,20 @@ export class HandTracking {
 			
 			if (!hand.joints['index-finger-tip']) {
 				pointerLine.visible = false;
+				this.gestureVisualizer.updateGesture(handedness, 'idle', null);
 				return;
+			}
+			
+			// Detect current gesture
+			const gestureResult = this.gestureDetector.detectGestures(hand, handedness);
+			if (gestureResult) {
+				// Update visualizer
+				this.gestureVisualizer.updateGesture(handedness, gestureResult.current, hand);
+				
+				// Trigger callbacks for gesture changes
+				if (gestureResult.changed) {
+					this.triggerGestureCallbacks(handedness, gestureResult.current, gestureResult.previous);
+				}
 			}
 			
 			const isPointingNow = this.isPointing(hand);
@@ -217,5 +237,44 @@ export class HandTracking {
 			// Store pinch state for next frame
 			hand.wasPinching = isPinchingNow;
 		});
+	}
+	
+	// Register a callback for gesture events
+	onGesture(gesture, handedness, callback) {
+		const key = `${gesture}-${handedness}`;
+		if (!this.gestureCallbacks.has(key)) {
+			this.gestureCallbacks.set(key, []);
+		}
+		this.gestureCallbacks.get(key).push(callback);
+	}
+	
+	// Trigger callbacks for gesture changes
+	triggerGestureCallbacks(handedness, currentGesture, previousGesture) {
+		// Trigger "end" callbacks for previous gesture
+		if (previousGesture && previousGesture !== 'idle') {
+			const endKey = `${previousGesture}-end-${handedness}`;
+			const endCallbacks = this.gestureCallbacks.get(endKey) || [];
+			endCallbacks.forEach(cb => cb(handedness, previousGesture));
+		}
+		
+		// Trigger "start" callbacks for current gesture
+		if (currentGesture && currentGesture !== 'idle') {
+			const startKey = `${currentGesture}-${handedness}`;
+			const startCallbacks = this.gestureCallbacks.get(startKey) || [];
+			startCallbacks.forEach(cb => cb(handedness, currentGesture));
+			
+			// Log gesture for debugging
+			console.log(`${handedness} hand: ${currentGesture} gesture detected`);
+		}
+	}
+	
+	// Get current gesture for a hand
+	getCurrentGesture(handedness) {
+		return this.gestureDetector.gestures[handedness];
+	}
+	
+	// Add visualizer to scene
+	addVisualizerToScene(scene) {
+		this.gestureVisualizer.addToScene(scene);
 	}
 }

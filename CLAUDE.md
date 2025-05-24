@@ -7,7 +7,15 @@ Kùzu Explore 3D VR is a VR/AR application for visualizing and exploring graph d
 - Basic node visualization working with sample data
 - Two-hand manipulation implemented (scale and rotate)
 - AR passthrough mode functional
-- Working on: Natural node movement system with finger-based interaction
+- Comprehensive gesture system implemented (pinch, fist, point, peace, thumbs up)
+- Experimental thumb menu UI for left hand control
+- Working on: Edge visualization and Cypher query interface
+
+## Design Philosophy
+- **Natural Interactions**: Gestures should feel intuitive and map to real-world actions
+- **Minimal UI**: Prefer gesture-based controls over traditional menus
+- **Visual Clarity**: UI elements must contrast with both AR and VR backgrounds
+- **Ergonomic Design**: Controls positioned for comfort during extended use
 
 ## Architecture
 - **Framework**: Three.js with WebXR
@@ -54,6 +62,13 @@ npm run dev
 - Ensure HTTPS is enabled (required for WebXR)
 - Hand tracking must be enabled in Quest settings
 
+## Sample Databases
+Three comprehensive sample databases are included:
+1. **Social Network** (100+ nodes): People, companies, interests, and their relationships
+2. **Knowledge Graph** (100+ nodes): Computer science concepts, languages, and technologies
+3. **Movie Database** (100+ nodes): Films, actors, directors, and awards
+4. **Demo** (20 nodes): Simple demo for quick testing
+
 ## Current Challenges
 1. Node movement needs to feel more natural and responsive
 2. UI system needs refinement for better usability
@@ -66,12 +81,31 @@ npm run dev
 - The app uses a simplified architecture (app-simple.js) for the proof of concept
 
 ## Recent Work
-- Removed node spinning animation for cleaner visualization
-- Working on natural node grabbing with pinch gestures
-- Implementing individual node movement system
+- Implemented comprehensive gesture detection system
+- Created experimental thumb menu UI (radial menu activated by thumbs up)
+- Fixed node position reset issue in double-pinch manipulation
+- Added separate VR/AR mode buttons with improved home screen UI
+
+## Current Gesture Controls
+- **Left Pinch**: Grab individual nodes
+- **Right Pinch**: Grab individual nodes / Confirm thumb menu selection
+- **Double Pinch**: Scale and translate entire graph
+- **Point (Index Extended)**: Ray-cast selection
+- **Peace Sign**: Toggle AR/VR modes
+- **Left Thumbs Up**: Activate thumb menu
+- **Right Thumbs Up**: Reset graph position
+- **Fist**: Reserved for future use
+
+## Thumb Menu Design Intent
+- Menu appears 5cm in front of wrist, perpendicular to forearm
+- Thumb rotation around forearm axis selects options (like turning a dial)
+- Direct mapping: clockwise thumb = clockwise selection
+- Right pinch confirms selection
+- Menu locks in world space when activated for stability
 
 ## Next Steps
-1. Complete natural node movement with finger tracking
-2. Add edge visualization between related nodes
-3. Implement basic Cypher query interface
-4. Optimize for larger graph datasets
+1. Add edge visualization between related nodes
+2. Implement menu options (labels, filters, viz modes)
+3. Create Cypher query interface
+4. Add voice commands
+5. Optimize for larger graph datasets

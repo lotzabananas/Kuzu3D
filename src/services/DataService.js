@@ -60,6 +60,34 @@ export class DataService {
 		}
 	}
 	
+	async getEdges() {
+		if (!this.connected) {
+			return {
+				success: false,
+				message: 'Not connected to database'
+			};
+		}
+		
+		try {
+			const response = await fetch(`${this.apiUrl}/edges`, {
+				signal: AbortSignal.timeout(SERVER_CONFIG.timeout)
+			});
+			
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			
+			const result = await response.json();
+			return result;
+		} catch (error) {
+			console.error('Failed to fetch edges:', error);
+			return {
+				success: false,
+				message: `Failed to fetch edges: ${error.message}`
+			};
+		}
+	}
+	
 	disconnect() {
 		this.connected = false;
 	}

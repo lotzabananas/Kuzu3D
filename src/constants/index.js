@@ -30,7 +30,24 @@ export const VISUAL_CONFIG = {
 		emissiveHovered: 0x004444,
 		emissiveSelected: 0x440044,
 		radius: 0.1,
-		segments: 16
+		segments: 16,
+		typeColors: {
+			// Social/General types
+			Person: 0x4a90e2,      // Blue
+			Company: 0x7ed321,     // Green
+			Project: 0xf5a623,     // Orange
+			Technology: 0xbd10e0,  // Purple
+			Location: 0x50e3c2,    // Teal
+			Event: 0xf8e71c,       // Yellow
+			// Movie database types
+			Actor: 0xff6b6b,       // Red
+			Movie: 0x4ecdc4,       // Mint
+			Director: 0x45b7d1,    // Sky Blue
+			Genre: 0xf7b731,       // Gold
+			Studio: 0x5f27cd,      // Deep Purple
+			// Default fallback color
+			default: 0x9013fe      // Violet
+		}
 	},
 	grid: {
 		spacing: 0.5,

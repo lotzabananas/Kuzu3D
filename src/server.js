@@ -21,8 +21,9 @@ let useMock = false;
 app.post('/api/connect', async (req, res) => {
 	const { dbPath } = req.body;
 	
-	// If path is 'mock' or empty, use mock data
-	if (!dbPath || dbPath === 'mock') {
+	// Check if it's one of our sample databases or mock
+	const sampleDatabases = ['mock', 'demo', 'social-network', 'knowledge-graph', 'movie-database'];
+	if (!dbPath || sampleDatabases.includes(dbPath)) {
 		useMock = true;
 		const result = await mockLoader.connect(dbPath);
 		return res.json(result);
@@ -100,6 +101,22 @@ app.get('/api/nodes', async (req, res) => {
 	} catch (error) {
 		res.json({ success: false, message: error.message });
 	}
+});
+
+// Endpoint to get edges
+app.get('/api/edges', async (req, res) => {
+	if (useMock) {
+		const result = await mockLoader.getEdges();
+		return res.json(result);
+	}
+	
+	if (!conn) {
+		return res.json({ success: false, message: 'Not connected to database' });
+	}
+	
+	// For now, return empty edges for real Kùzu databases
+	// TODO: Implement real edge querying
+	res.json({ success: true, edges: [] });
 });
 
 const PORT = process.env.PORT || 3000;

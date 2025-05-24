@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { SimpleWristUI } from '../components/SimpleWristUI.js';
+import { Legend } from '../components/Legend.js';
 import { ManipulationController } from '../components/ManipulationController.js';
+import { SimpleWristUI } from '../components/SimpleWristUI.js';
+import { ThumbMenu } from '../components/ThumbMenu.js';
 import { logger } from '../utils/Logger.js';
 
 export class UIManagerBasic {
@@ -13,6 +15,8 @@ export class UIManagerBasic {
 		// Simple components
 		this.wristUI = new SimpleWristUI();
 		this.manipulationController = new ManipulationController();
+		this.thumbMenu = new ThumbMenu();
+		this.legend = new Legend();
 		
 		// Add wrist UI to scene (temporarily disabled)
 		// this.scene.add(this.wristUI.getContainer());
@@ -20,9 +24,18 @@ export class UIManagerBasic {
 		// Add manipulation controller visual feedback to scene
 		this.manipulationController.addToScene(scene);
 		
+		// Add thumb menu to scene
+		this.thumbMenu.addToScene(scene);
+		
+		// Add legend to scene
+		this.scene.add(this.legend);
+		
 		// Simple state
 		this.hoveredNode = null;
 		this.selectedNode = null;
+		
+		// Thumb menu state
+		this.thumbMenuActive = false;
 		
 		logger.info('Basic UI Manager initialized');
 	}
@@ -50,6 +63,33 @@ export class UIManagerBasic {
 		
 		// Update manipulation controller (handles all node interaction)
 		this.manipulationController.update(leftHand, rightHand, nodeManager, deltaTime);
+		
+		// Check for thumb menu gesture
+		const leftGesture = this.handTracking.getCurrentGesture('left');
+		const rightGesture = this.handTracking.getCurrentGesture('right');
+		
+		// Activate/deactivate thumb menu based on left thumbs up gesture
+		if (leftGesture === 'thumbsup' && !this.thumbMenuActive) {
+			this.thumbMenu.activate(leftHand);
+			this.thumbMenuActive = true;
+		} else if (leftGesture !== 'thumbsup' && this.thumbMenuActive) {
+			this.thumbMenu.deactivate();
+			this.thumbMenuActive = false;
+		}
+		
+		// Update thumb menu if active
+		if (this.thumbMenuActive) {
+			const rightPinching = rightGesture === 'pinch';
+			this.thumbMenu.update(leftHand, rightHand, rightPinching);
+		}
+		
+		// Update legend position if visible
+		if (this.legend.visible && leftHand && leftHand.joints && leftHand.joints.wrist) {
+			const wristMatrix = leftHand.joints.wrist.matrix;
+			const wristPos = new THREE.Vector3();
+			wristPos.setFromMatrixPosition(wristMatrix);
+			this.legend.updatePosition(wristPos, null);
+		}
 		
 		// Check wrist UI button clicks (temporarily disabled)
 		// this.checkWristUIClicks(rightHand, nodeManager);
@@ -154,5 +194,7 @@ export class UIManagerBasic {
 	dispose() {
 		this.manipulationController.removeFromScene(this.scene);
 		this.manipulationController.dispose();
+		this.thumbMenu.removeFromScene(this.scene);
+		this.thumbMenu.dispose();
 	}
 }

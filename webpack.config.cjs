@@ -9,9 +9,16 @@ module.exports = {
 		index: './src/app-simple.js',
 	},
 	devServer: {
-		static: {
-			directory: path.join(__dirname, 'dist'),
-		},
+		static: [
+			{
+				directory: path.join(__dirname, 'dist'),
+			},
+			{
+				directory: path.join(__dirname, '.'),
+				publicPath: '/',
+				serveIndex: false
+			}
+		],
 		host: '0.0.0.0',
 		server: 'https',
 		compress: true,
