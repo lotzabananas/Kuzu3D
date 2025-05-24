@@ -48,24 +48,49 @@ export class NodeManager {
 			}
 		});
 		
-		// Set hovered state if object is a node
-		if (object && this.nodes.includes(object)) {
-			object.setHovered(true);
-			return object;
+		// Check if object is a node or part of a node group
+		let targetNode = null;
+		if (object) {
+			// If object is a GraphNode directly
+			if (this.nodes.includes(object)) {
+				targetNode = object;
+			} 
+			// If object is a child of a GraphNode (like the sphere mesh)
+			else if (object.parent && this.nodes.includes(object.parent)) {
+				targetNode = object.parent;
+			}
+		}
+		
+		if (targetNode) {
+			targetNode.setHovered(true);
+			return targetNode;
 		}
 		
 		return null;
 	}
 	
 	handleSelect(object) {
-		if (!object || !this.nodes.includes(object)) return null;
+		// Check if object is a node or part of a node group
+		let targetNode = null;
+		if (object) {
+			// If object is a GraphNode directly
+			if (this.nodes.includes(object)) {
+				targetNode = object;
+			} 
+			// If object is a child of a GraphNode (like the sphere mesh)
+			else if (object.parent && this.nodes.includes(object.parent)) {
+				targetNode = object.parent;
+			}
+		}
+		
+		if (!targetNode) return null;
 		
 		// Toggle selection
-		if (this.selectedNode === object) {
+		if (this.selectedNode === targetNode) {
 			// Deselect
-			object.setSelected(false);
+			targetNode.setSelected(false);
 			this.selectedNode = null;
-			console.log('Deselected node:', object.userData);
+			console.log('Deselected node:', targetNode.userData);
 		} else {
 			// Deselect previous
 			if (this.selectedNode) {
@@ -73,12 +98,12 @@ export class NodeManager {
 			}
 			
 			// Select new
-			object.setSelected(true);
-			this.selectedNode = object;
-			console.log('Selected node:', object.userData);
+			targetNode.setSelected(true);
+			this.selectedNode = targetNode;
+			console.log('Selected node:', targetNode.userData);
 		}
 		
-		return object;
+		return targetNode;
 	}
 	
 	getNodes() {

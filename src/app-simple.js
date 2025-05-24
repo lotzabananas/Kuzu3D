@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { DebugPanel } from './components/DebugPanel.js';
 import { UI_CONFIG } from './constants/index.js';
 import { init } from './init.js';
+import { EdgeManager } from './managers/EdgeManager.js';
 import { NodeManager } from './managers/NodeManager.js';
 import { SceneManager } from './managers/SceneManager.js';
 import { UIManagerBasic } from './managers/UIManagerBasic.js';
@@ -13,6 +14,7 @@ class KuzuVRApp {
 	constructor() {
 		this.dataService = new DataService();
 		this.nodeManager = null;
+		this.edgeManager = null;
 		this.sceneManager = null;
 		this.uiManager = null;
 		this.handTracking = null;
@@ -26,6 +28,7 @@ class KuzuVRApp {
 		// Initialize managers
 		this.sceneManager = new SceneManager(scene, renderer);
 		this.nodeManager = new NodeManager(scene);
+		this.edgeManager = new EdgeManager(scene);
 		this.handTracking = handTracking;
 		
 		// Initialize basic UI Manager
@@ -73,6 +76,11 @@ class KuzuVRApp {
 		// Update node animations
 		if (this.nodeManager) {
 			this.nodeManager.update(delta);
+		}
+		
+		// Update edge positions
+		if (this.edgeManager) {
+			this.edgeManager.update();
 		}
 		
 		// Update UI Manager
@@ -170,7 +178,6 @@ class KuzuVRApp {
 		});
 		
 		// Thumb menu setup
-		let legendToggleCooldown = false;
 		if (this.uiManager && this.uiManager.thumbMenu) {
 			this.uiManager.thumbMenu.onSelect((option) => {
 				logger.info(`Thumb menu option ${option} selected!`);
@@ -178,15 +185,8 @@ class KuzuVRApp {
 				// Example actions for each option
 				switch(option) {
 					case 1:
-						// Prevent rapid toggling with cooldown
-						if (!legendToggleCooldown) {
-							const legendVisible = this.uiManager.legend.toggle();
-							logger.info(`Legend ${legendVisible ? 'shown' : 'hidden'}`);
-							legendToggleCooldown = true;
-							setTimeout(() => {
-								legendToggleCooldown = false;
-							}, 500); // 500ms cooldown
-						}
+						const legendVisible = this.uiManager.legend.toggle();
+						logger.info(`Legend ${legendVisible ? 'shown' : 'hidden'}`);
 						break;
 					case 2:
 						logger.info('Option 2: Change visualization mode');
@@ -250,6 +250,13 @@ class KuzuVRApp {
 			// Update legend with current node types
 			if (this.uiManager && this.uiManager.legend) {
 				this.uiManager.legend.updateNodeTypes(nodes);
+			}
+			
+			// Load and create edges
+			const edgesResult = await this.dataService.getEdges();
+			if (edgesResult.success && edgesResult.edges) {
+				this.edgeManager.createEdges(edgesResult.edges, this.nodeManager);
+				logger.info(`Loaded ${edgesResult.edges.length} edges`);
 			}
 			
 			// Update status

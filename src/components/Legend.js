@@ -42,8 +42,10 @@ export class Legend extends THREE.Group {
 		
 		// Calculate dimensions
 		const rowHeight = 0.06;
-		const totalHeight = this.nodeTypes.size * rowHeight + 0.04;
+		const headerHeight = 0.04;
+		const totalHeight = this.nodeTypes.size * rowHeight + headerHeight + 0.04;
 		const width = 0.3;
+		const columnWidth = width / 2;
 		
 		// Create transparent background with thin border
 		const bgGroup = new THREE.Group();
@@ -87,14 +89,36 @@ export class Legend extends THREE.Group {
 		const rightLine = new THREE.Line(rightGeometry, lineMaterial);
 		bgGroup.add(rightLine);
 		
+		// Middle vertical line (column separator)
+		const middlePoints = [
+			new THREE.Vector3(0, totalHeight/2, 0),
+			new THREE.Vector3(0, -totalHeight/2, 0)
+		];
+		const middleGeometry = new THREE.BufferGeometry().setFromPoints(middlePoints);
+		const middleLine = new THREE.Line(middleGeometry, lineMaterial);
+		bgGroup.add(middleLine);
+		
+		// Header row separator
+		const headerSeparatorPoints = [
+			new THREE.Vector3(-width/2, totalHeight/2 - headerHeight, 0),
+			new THREE.Vector3(width/2, totalHeight/2 - headerHeight, 0)
+		];
+		const headerSeparatorGeometry = new THREE.BufferGeometry().setFromPoints(headerSeparatorPoints);
+		const headerSeparatorLine = new THREE.Line(headerSeparatorGeometry, lineMaterial);
+		bgGroup.add(headerSeparatorLine);
+		
 		this.add(bgGroup);
 		
+		// Create header labels
+		this.createTextMesh('Node Color', -columnWidth/2, totalHeight/2 - headerHeight/2);
+		this.createTextMesh('Node Type', columnWidth/2, totalHeight/2 - headerHeight/2);
+		
 		// Create entries for each discovered node type
-		let yOffset = (totalHeight / 2) - rowHeight/2 - 0.02;
+		let yOffset = totalHeight/2 - headerHeight - rowHeight/2;
 		
 		this.nodeTypes.forEach((color, typeName) => {
 			// Create 3D node sphere (like in the graph)
-			const sphereGeometry = new THREE.SphereGeometry(0.025, 16, 16);
+			const sphereGeometry = new THREE.SphereGeometry(0.02, 16, 16);
 			const sphereMaterial = new THREE.MeshPhongMaterial({
 				color: color,
 				emissive: color,
@@ -102,7 +126,7 @@ export class Legend extends THREE.Group {
 				shininess: 100
 			});
 			const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-			sphere.position.set(-width/2 + 0.04, yOffset, 0.01);
+			sphere.position.set(-columnWidth/2, yOffset, 0.01);
 			this.add(sphere);
 			
 			// Create horizontal separator line (except for last item)
@@ -116,14 +140,45 @@ export class Legend extends THREE.Group {
 				this.add(separatorLine);
 			}
 			
-			// Create text label with better positioning
-			this.createTextLabel(typeName, 0.02, yOffset);
+			// Create text label in right column
+			this.createTextMesh(typeName, columnWidth/2, yOffset);
 			
 			yOffset -= rowHeight;
 		});
 		
 		// Rotate entire legend 45 degrees for better viewing angle
 		this.rotation.x = -Math.PI / 4; // 45 degrees tilted back
+	}
+	
+	createTextMesh(text, x, y) {
+		// Create canvas for text texture
+		const canvas = document.createElement('canvas');
+		const context = canvas.getContext('2d');
+		canvas.width = 256;
+		canvas.height = 64;
+		
+		// Configure text
+		context.font = '28px Arial';
+		context.fillStyle = 'black';
+		context.textAlign = 'center';
+		context.textBaseline = 'middle';
+		context.fillText(text, canvas.width / 2, canvas.height / 2);
+		
+		// Create texture and material
+		const texture = new THREE.CanvasTexture(canvas);
+		const material = new THREE.MeshBasicMaterial({
+			map: texture,
+			transparent: true,
+			side: THREE.DoubleSide
+		});
+		
+		// Create plane mesh (not sprite, so it stays in plane)
+		const geometry = new THREE.PlaneGeometry(0.12, 0.03);
+		const mesh = new THREE.Mesh(geometry, material);
+		mesh.position.set(x, y, 0.001);
+		this.add(mesh);
+		
+		return mesh;
 	}
 	
 	createTextLabel(text, x, y) {

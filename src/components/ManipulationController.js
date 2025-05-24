@@ -181,8 +181,15 @@ export class ManipulationController {
 		let nearestDistance = maxDistance;
 		
 		for (const node of nodes) {
+			// Get the actual sphere position within the GraphNode group
 			const nodePos = new THREE.Vector3();
-			node.getWorldPosition(nodePos);
+			if (node.sphere) {
+				// GraphNode is a group, get sphere's world position
+				node.sphere.getWorldPosition(nodePos);
+			} else {
+				// Fallback to node position
+				node.getWorldPosition(nodePos);
+			}
 			
 			const distance = fingerPos.distanceTo(nodePos);
 			if (distance < nearestDistance) {
@@ -345,7 +352,12 @@ export class ManipulationController {
 		// Node hover feedback
 		if (this.mode === 'idle' && this.hoveredNode) {
 			const nodePos = new THREE.Vector3();
-			this.hoveredNode.getWorldPosition(nodePos);
+			// Get sphere position if it's a GraphNode group
+			if (this.hoveredNode.sphere) {
+				this.hoveredNode.sphere.getWorldPosition(nodePos);
+			} else {
+				this.hoveredNode.getWorldPosition(nodePos);
+			}
 			nodeHover.position.copy(nodePos);
 			nodeHover.visible = true;
 		} else {
@@ -355,7 +367,12 @@ export class ManipulationController {
 		// Node grab feedback
 		if (this.mode === 'node_grab' && this.grabbedNode) {
 			const nodePos = new THREE.Vector3();
-			this.grabbedNode.getWorldPosition(nodePos);
+			// Get sphere position if it's a GraphNode group
+			if (this.grabbedNode.sphere) {
+				this.grabbedNode.sphere.getWorldPosition(nodePos);
+			} else {
+				this.grabbedNode.getWorldPosition(nodePos);
+			}
 			nodeGrab.position.copy(nodePos);
 			nodeGrab.visible = true;
 			

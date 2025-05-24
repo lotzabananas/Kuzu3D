@@ -26,7 +26,7 @@ export class ThumbMenu {
 			angleRange: 120,       // Total arc in degrees
 			optionSize: 0.04,      // Size of each option sphere
 			colors: {
-				inactive: 0x666688,   // Lighter blue-gray for visibility
+				inactive: 0xaaaaaa,   // Brighter for visibility
 				active: 0x00ff00,
 				selected: 0xffff00,
 				confirmed: 0xff0000
@@ -70,28 +70,25 @@ export class ThumbMenu {
 			sphere.position.y = Math.cos(angleRad) * this.config.radius;
 			sphere.position.z = 0;
 			
-			// Create label
+			// Create label with number (working version)
 			const canvas = document.createElement('canvas');
-			canvas.width = 512;
-			canvas.height = 256;
+			canvas.width = 128;
+			canvas.height = 128;
 			const ctx = canvas.getContext('2d');
 			
-			// Clear canvas
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			
-			// Draw icon
+			// Draw number
 			ctx.fillStyle = 'white';
-			ctx.font = 'bold 96px Arial';
+			ctx.font = 'bold 64px Arial';
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
-			ctx.fillText(optionIcons[i], 256, 80);
+			ctx.fillText((i + 1).toString(), 64, 64);
 			
-			// Draw text label
-			ctx.font = 'bold 48px Arial';
-			ctx.fillText(optionLabels[i], 256, 176);
+			// Add small text label below
+			ctx.font = '20px Arial';
+			ctx.fillText(optionLabels[i], 64, 100);
 			
 			const texture = new THREE.CanvasTexture(canvas);
-			const labelGeometry = new THREE.PlaneGeometry(0.08, 0.04);
+			const labelGeometry = new THREE.PlaneGeometry(0.03, 0.03);
 			const labelMaterial = new THREE.MeshBasicMaterial({
 				map: texture,
 				transparent: true,
@@ -150,6 +147,10 @@ export class ThumbMenu {
 		// Get wrist position and forearm direction
 		const wristPos = new THREE.Vector3();
 		wrist.getWorldPosition(wristPos);
+		
+		logger.info('Thumb menu activating at position:', wristPos);
+		logger.info('Menu group visible:', this.menuGroup.visible);
+		logger.info('Menu group children:', this.menuGroup.children.length);
 		
 		// Calculate forearm direction
 		const forearmDir = this.getForearmDirection(hand);

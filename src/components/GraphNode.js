@@ -27,7 +27,6 @@ export class GraphNode extends THREE.Group {
 		this.add(this.sphere);
 		
 		// Create text label
-		console.log('GraphNode nodeData:', nodeData);
 		this.createTextLabel(nodeData.label || nodeData.name || `Node ${index}`);
 		
 		// Store node data

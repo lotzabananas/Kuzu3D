@@ -109,3 +109,31 @@ Three comprehensive sample databases are included:
 3. Create Cypher query interface
 4. Add voice commands
 5. Optimize for larger graph datasets
+
+## TODO
+- Fix thumb menu labels to show text clearly (Legend, View, Filter, Settings) - currently only numbers are visible
+- The legend table UI looks good but text needs to be properly aligned in the plane
+
+## Known Issues
+### Thumb Menu Node Snapping Bug
+**Symptoms:**
+- Thumb menu doesn't appear when making thumbs up gesture
+- When menu does activate, nodes snap back to their original positions
+
+**Root Cause Analysis:**
+- Issue appears after converting GraphNode from THREE.Mesh to THREE.Group
+- Likely conflicts between ManipulationController and thumb menu gesture detection
+- Possible issues:
+  1. Gesture conflict between thumbs up and pinch detection
+  2. Node position updates being reset when UI state changes
+  3. GraphNode Group structure not properly handled in all interaction code
+
+**Previous Fixes Attempted:**
+- Updated NodeManager hover/select to handle GraphNode groups
+- Updated ManipulationController findNearestNode to use sphere position
+- Fixed visual feedback to use sphere position for GraphNode groups
+
+**Next Steps to Debug:**
+- Check if thumbs up gesture is being intercepted by ManipulationController
+- Verify node positions are properly maintained when UI state changes
+- Ensure all code paths properly handle GraphNode as Group vs Mesh
