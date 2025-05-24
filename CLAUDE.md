@@ -113,6 +113,12 @@ Three comprehensive sample databases are included:
 ## TODO
 - Fix thumb menu labels to show text clearly (Legend, View, Filter, Settings) - currently only numbers are visible
 - The legend table UI looks good but text needs to be properly aligned in the plane
+- Fix edge label alignment:
+  - Text should read ALONG the line (like text on a road)
+  - Line should pass through left and right sides of text (----WORKS_AT----)
+  - Text should flip/mirror when viewed from behind for readability
+  - Should look similar to Kuzu Explorer's edge labels
+  - Current issue: Text orientation is not aligning properly with line direction
 
 ## Known Issues
 ### Thumb Menu Node Snapping Bug

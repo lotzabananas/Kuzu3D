@@ -98,17 +98,15 @@ export class EdgeManager {
 		context.fillText(text, canvas.width / 2, canvas.height / 2);
 		
 		const texture = new THREE.CanvasTexture(canvas);
-		const material = new THREE.MeshBasicMaterial({
+		const spriteMaterial = new THREE.SpriteMaterial({
 			map: texture,
-			transparent: true,
-			side: THREE.DoubleSide
+			transparent: true
 		});
 		
-		// Create plane mesh so we can rotate it to be parallel with the line
-		const geometry = new THREE.PlaneGeometry(1, 0.25);
-		const mesh = new THREE.Mesh(geometry, material);
+		const sprite = new THREE.Sprite(spriteMaterial);
+		sprite.scale.set(1, 0.25, 1);
 		
-		return mesh;
+		return sprite;
 	}
 	
 	getEdgeColor(type) {
@@ -164,32 +162,6 @@ export class EdgeManager {
 			
 			// Position label at midpoint of the line
 			edge.label.position.copy(midPoint);
-			
-			// We want the line to go through the left and right sides of the text plane
-			// So the text reads along the line direction
-			
-			// First align the label's local X-axis with the line direction
-			const quaternion = new THREE.Quaternion();
-			const up = new THREE.Vector3(0, 1, 0);
-			
-			// If line is mostly vertical, use a different up vector
-			if (Math.abs(direction.dot(up)) > 0.9) {
-				up.set(0, 0, 1);
-			}
-			
-			// Calculate right and forward vectors
-			const right = new THREE.Vector3().crossVectors(up, direction).normalize();
-			const actualUp = new THREE.Vector3().crossVectors(direction, right).normalize();
-			
-			// Create rotation matrix where:
-			// - X axis (right) aligns with line direction
-			// - Y axis (up) is perpendicular to line
-			// - Z axis (forward) completes the orthogonal basis
-			const matrix = new THREE.Matrix4();
-			matrix.makeBasis(direction, actualUp, right);
-			
-			quaternion.setFromRotationMatrix(matrix);
-			edge.label.quaternion.copy(quaternion);
 			
 			// Get the graph scale from node's parent (the nodeGroup)
 			const nodeGroup = edge.fromNode.parent;

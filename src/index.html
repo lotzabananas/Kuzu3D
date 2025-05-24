@@ -214,6 +214,7 @@
 							<option value="social-network">Social Network (100+ nodes)</option>
 							<option value="knowledge-graph">Computer Science Knowledge Graph (100+ nodes)</option>
 							<option value="movie-database">Movie Database (100+ nodes)</option>
+							<option value="custom">Custom Kùzu Database...</option>
 						</select>
 						<button id="load-db">Load Database</button>
 					</div>
@@ -222,8 +223,10 @@
 				<div class="input-group" style="margin-top: 1rem; display: none;" id="custom-db-group">
 					<label for="db-path">Custom Database Path</label>
 					<div class="input-wrapper">
-						<input type="text" id="db-path" placeholder="Enter Kùzu database path">
-						<button id="load-custom">Connect</button>
+						<input type="text" id="db-path" placeholder="/path/to/your/kuzu/database">
+					</div>
+					<div class="info-text" style="margin-top: 0.5rem;">
+						Enter the full path to your Kùzu database directory
 					</div>
 				</div>
 				
@@ -250,6 +253,23 @@
 			document.addEventListener('DOMContentLoaded', () => {
 				const vrButton = document.getElementById('custom-vr-button');
 				const arButton = document.getElementById('custom-ar-button');
+				
+				// Handle database selection
+				const dbSelect = document.getElementById('db-select');
+				const customDbGroup = document.getElementById('custom-db-group');
+				
+				dbSelect.addEventListener('change', () => {
+					if (dbSelect.value === 'custom') {
+						customDbGroup.style.display = 'block';
+						// Auto-fill with test database path
+						const dbPathInput = document.getElementById('db-path');
+						if (!dbPathInput.value) {
+							dbPathInput.value = '/Users/timmac/Desktop/Kuzu3D/test-kuzu-db';
+						}
+					} else {
+						customDbGroup.style.display = 'none';
+					}
+				});
 				
 				// These will be replaced by actual XR buttons after they're created
 				let realVRButton = null;

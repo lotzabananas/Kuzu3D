@@ -40,7 +40,7 @@ app.post('/api/connect', async (req, res) => {
 		conn = new kuzu.Connection(db);
 		
 		// Test the connection
-		await conn.execute('RETURN 1');
+		await conn.query('RETURN 1');
 		
 		res.json({ success: true, message: 'Connected to Kùzu database' });
 	} catch (error) {
@@ -73,7 +73,7 @@ app.get('/api/nodes', async (req, res) => {
 		
 		// If no table specified, get the first node table
 		if (!targetTable) {
-			const tables = await conn.execute('CALL show_tables() RETURN *;');
+			const tables = await conn.query('CALL show_tables() RETURN *;');
 			const result = await tables.getAll();
 			
 			// Find first node table
@@ -86,17 +86,23 @@ app.get('/api/nodes', async (req, res) => {
 		
 		// Get nodes from the table
 		const query = `MATCH (n:${targetTable}) RETURN n LIMIT ${limit};`;
-		const queryResult = await conn.execute(query);
+		const queryResult = await conn.query(query);
 		const nodes = await queryResult.getAll();
 		
 		res.json({
 			success: true,
 			tableName: targetTable,
-			nodes: nodes.map((row, index) => ({
-				id: index,
-				data: row.n,
-				label: row.n.id || row.n.name || `Node ${index}`
-			}))
+			nodes: nodes.map((row) => {
+				const node = row.n;
+				// Create consistent ID that matches edge format
+				const nodeId = `${node._label}_${node._id.offset}`;
+				
+				return {
+					id: nodeId,
+					data: node,
+					label: node.name || node.id || node.title || `${node._label} ${node._id.offset}`
+				};
+			})
 		});
 	} catch (error) {
 		res.json({ success: false, message: error.message });
@@ -114,9 +120,61 @@ app.get('/api/edges', async (req, res) => {
 		return res.json({ success: false, message: 'Not connected to database' });
 	}
 	
-	// For now, return empty edges for real Kùzu databases
-	// TODO: Implement real edge querying
-	res.json({ success: true, edges: [] });
+	try {
+		// First get all relationship tables
+		const tablesQuery = await conn.query('CALL show_tables() RETURN *');
+		const tables = await tablesQuery.getAll();
+		const relTables = tables.filter(t => t.type === 'REL').map(t => t.name);
+		
+		if (relTables.length === 0) {
+			return res.json({ success: true, edges: [] });
+		}
+		
+		// Query all relationships from all tables
+		const allEdges = [];
+		
+		for (const relTable of relTables) {
+			try {
+				// Query pattern: MATCH (a)-[r:RelType]->(b) RETURN a, r, b
+				const query = `MATCH (a)-[r:${relTable}]->(b) RETURN a, r, b LIMIT 1000`;
+				const result = await conn.query(query);
+				const edges = await result.getAll();
+				
+				// Transform to our edge format
+				edges.forEach(edge => {
+					// Extract node IDs from the internal _id structure
+					const fromId = `${edge.a._label}_${edge.a._id.offset}`;
+					const toId = `${edge.b._label}_${edge.b._id.offset}`;
+					
+					allEdges.push({
+						from: fromId,
+						to: toId,
+						type: relTable,
+						properties: Object.keys(edge.r).reduce((props, key) => {
+							if (!key.startsWith('_')) {
+								props[key] = edge.r[key];
+							}
+							return props;
+						}, {})
+					});
+				});
+			} catch (err) {
+				console.warn(`Failed to query relationship table ${relTable}:`, err.message);
+			}
+		}
+		
+		res.json({
+			success: true,
+			edges: allEdges
+		});
+		
+	} catch (error) {
+		console.error('Failed to fetch edges:', error);
+		res.json({ 
+			success: false, 
+			message: `Failed to fetch edges: ${error.message}` 
+		});
+	}
 });
 
 const PORT = process.env.PORT || 3000;
