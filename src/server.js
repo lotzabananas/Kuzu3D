@@ -4,6 +4,7 @@ import kuzu from 'kuzu';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { MockLoader } from './mock-loader.js';
+import CypherQueryService from './services/CypherQueryService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,15 +16,19 @@ app.use(express.json());
 let db = null;
 let conn = null;
 let mockLoader = new MockLoader();
+let cypherService = null;
 let useMock = false;
 
 // Endpoint to connect to database
 app.post('/api/connect', async (req, res) => {
 	const { dbPath } = req.body;
 	
+	console.log('Connect request received for:', dbPath);
+	
 	// Check if it's one of our sample databases or mock
 	const sampleDatabases = ['mock', 'demo', 'social-network', 'knowledge-graph', 'movie-database'];
 	if (!dbPath || sampleDatabases.includes(dbPath)) {
+		console.log('Using mock data for:', dbPath);
 		useMock = true;
 		const result = await mockLoader.connect(dbPath);
 		return res.json(result);
@@ -35,17 +40,25 @@ app.post('/api/connect', async (req, res) => {
 		if (db) db = null;
 		useMock = false;
 		
+		console.log('Attempting to connect to Kùzu database:', dbPath);
+		
 		// Try to create new connection
 		db = new kuzu.Database(dbPath);
 		conn = new kuzu.Connection(db);
 		
 		// Test the connection
+		console.log('Testing connection with RETURN 1...');
 		await conn.query('RETURN 1');
 		
+		// Initialize CypherQueryService
+		cypherService = new CypherQueryService({ conn });
+		
+		console.log('Successfully connected to Kùzu database');
 		res.json({ success: true, message: 'Connected to Kùzu database' });
 	} catch (error) {
 		// Fall back to mock data
-		console.log('Kùzu connection failed, using mock data:', error.message);
+		console.error('Kùzu connection failed:', error);
+		console.log('Error details:', error.message, error.stack);
 		useMock = true;
 		const result = await mockLoader.connect(dbPath);
 		res.json({ ...result, message: result.message + ' (Kùzu unavailable)' });
@@ -175,6 +188,110 @@ app.get('/api/edges', async (req, res) => {
 			message: `Failed to fetch edges: ${error.message}` 
 		});
 	}
+});
+
+// Cypher query endpoints
+
+// Execute Cypher query
+app.post('/api/cypher/execute', async (req, res) => {
+	if (useMock) {
+		return res.json({
+			success: false,
+			error: { message: 'Cypher queries not supported in mock mode' }
+		});
+	}
+	
+	if (!cypherService) {
+		return res.json({
+			success: false,
+			error: { message: 'Not connected to database' }
+		});
+	}
+	
+	try {
+		const { query, parameters = {}, options = {} } = req.body;
+		
+		if (!query) {
+			return res.status(400).json({
+				success: false,
+				error: { message: 'Query is required' }
+			});
+		}
+		
+		const result = await cypherService.executeQuery(query, parameters, options);
+		res.json(result);
+	} catch (error) {
+		console.error('Query execution error:', error);
+		res.status(500).json({
+			success: false,
+			error: { message: error.message }
+		});
+	}
+});
+
+// Validate Cypher query
+app.post('/api/cypher/validate', async (req, res) => {
+	if (useMock) {
+		return res.json({
+			valid: false,
+			errors: [{ message: 'Cypher validation not supported in mock mode' }]
+		});
+	}
+	
+	if (!cypherService) {
+		return res.json({
+			valid: false,
+			errors: [{ message: 'Not connected to database' }]
+		});
+	}
+	
+	try {
+		const { query } = req.body;
+		
+		if (!query) {
+			return res.status(400).json({
+				valid: false,
+				errors: [{ message: 'Query is required' }]
+			});
+		}
+		
+		const result = await cypherService.validateQuery(query);
+		res.json(result);
+	} catch (error) {
+		console.error('Query validation error:', error);
+		res.status(500).json({
+			valid: false,
+			errors: [{ message: error.message }]
+		});
+	}
+});
+
+// Get query templates
+app.get('/api/cypher/templates', (req, res) => {
+	if (!cypherService) {
+		cypherService = new CypherQueryService({ conn: null });
+	}
+	
+	res.json({
+		success: true,
+		templates: cypherService.getQueryTemplates()
+	});
+});
+
+// Get query history
+app.get('/api/cypher/history', (req, res) => {
+	if (!cypherService) {
+		return res.json({
+			success: false,
+			history: [],
+			message: 'Not connected to database'
+		});
+	}
+	
+	res.json({
+		success: true,
+		history: cypherService.getQueryHistory()
+	});
 });
 
 const PORT = process.env.PORT || 3000;

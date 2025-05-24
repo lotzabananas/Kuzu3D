@@ -17,7 +17,8 @@
 	"scripts": {
 		"build": "webpack --config webpack.prod.cjs",
 		"build:dev": "webpack",
-		"dev": "webpack serve",
+		"dev": "npm run server & webpack serve",
+		"dev:frontend": "webpack serve",
 		"server": "node src/server.js",
 		"server:prod": "NODE_ENV=production node src/server.js",
 		"format": "prettier --write ./src/**/*",

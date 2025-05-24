@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GraphNode } from '../components/GraphNode.js';
-import { VISUAL_CONFIG } from '../constants/index.js';
+// VISUAL_CONFIG is imported but not used
+// import { VISUAL_CONFIG } from '../constants/index.js';
 
 export class NodeManager {
 	constructor(scene) {
@@ -35,7 +36,7 @@ export class NodeManager {
 		this.selectedNode = null;
 	}
 	
-	update(deltaTime) {
+	update(_deltaTime) {
 		// Node updates without rotation - spinning animation removed
 		// Individual nodes can still have their own animations if needed
 	}

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { logger } from '../utils/Logger.js';
 import { debugManager } from '../utils/DebugManager.js';
+// logger is imported but not used in this file
+// import { logger } from '../utils/Logger.js';
 
 /**
  * Visual feedback for gesture detection

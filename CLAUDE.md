@@ -4,12 +4,16 @@
 Kùzu Explore 3D VR is a VR/AR application for visualizing and exploring graph databases in 3D space using Meta Quest 3. The project focuses on natural hand-tracking interactions for manipulating graph nodes and exploring relationships in an immersive environment.
 
 ## Current Status
-- Basic node visualization working with sample data
-- Two-hand manipulation implemented (scale and rotate)
-- AR passthrough mode functional
-- Comprehensive gesture system implemented (pinch, fist, point, peace, thumbs up)
-- Experimental thumb menu UI for left hand control
-- Working on: Edge visualization and Cypher query interface
+- ✅ Basic node visualization with 100+ nodes from sample databases
+- ✅ Two-hand manipulation (scale and rotate) with position persistence
+- ✅ AR passthrough mode functional with separate VR/AR buttons
+- ✅ Node labels displayed on nodes (up to 60 characters)
+- ✅ Node colors by type with dynamic legend
+- ✅ Edge visualization with relationship labels
+- ✅ Thumb menu integration with Legend toggle
+- ✅ Direct Kùzu database integration with custom database support
+- ✅ Debug mode for hiding development features
+- Working on: Cypher query interface and performance optimization
 
 ## Design Philosophy
 - **Natural Interactions**: Gestures should feel intuitive and map to real-world actions
@@ -19,42 +23,83 @@ Kùzu Explore 3D VR is a VR/AR application for visualizing and exploring graph d
 
 ## Architecture
 - **Framework**: Three.js with WebXR
-- **Database**: Kùzu graph database (embedded via WebAssembly)
+- **Database**: Kùzu graph database (native Node.js integration)
 - **Platform**: Meta Quest 3 with hand tracking
+- **Backend**: Express.js server with Kùzu API
 - **Key Managers**:
   - `NodeManager`: Handles graph node creation and updates
   - `SceneManager`: Manages 3D scene and AR passthrough
   - `UIManagerBasic`: Handles hand tracking and manipulation
-  - `DataService`: Interfaces with Kùzu database
+  - `DataService`: Interfaces with backend server
+  - `EdgeManager`: Manages edge visualization and labels
+  - `DebugManager`: Controls development feature visibility
+  - `ManipulationController`: Handles node grabbing and graph manipulation
 
-## Key Features to Implement
-1. **Node Movement System** (In Progress)
-   - Natural finger-based grabbing and movement
-   - Individual node manipulation
-   - Scalable for large graph visualizations
+## Completed Features
+1. **Node Movement System** ✅
+   - Natural pinch-based grabbing and movement
+   - Individual node manipulation with both hands
+   - Graph-level manipulation with double pinch
+   - Position persistence during mode changes
 
-2. **Graph Relationships**
-   - Visualize edges between nodes
-   - Show relationship types and properties
-   - Interactive edge exploration
+2. **Graph Relationships** ✅
+   - Edge visualization with straight lines
+   - Relationship type labels on edges
+   - Dynamic edge updates when nodes move
+   - Color-coded edges by relationship type
 
-3. **Cypher Query Integration**
-   - Full Cypher query system in VR
-   - Real-time query execution
-   - Visual query results
+3. **Database Integration** ✅
+   - Direct Kùzu database connection
+   - Custom database path support with auto-fill
+   - Sample databases (Social Network, Knowledge Graph, Movie Database)
+   - Mock data fallback when Kùzu unavailable
 
-4. **UI Improvements**
-   - Better hand tracking feedback
-   - Improved manipulation controls
-   - Query interface in VR
+4. **UI Improvements** ✅
+   - Node labels with 60 character limit
+   - Dynamic legend showing node types and colors
+   - Thumb menu with Legend toggle
+   - Debug mode for hiding development features
+   - Improved home screen with database selection
+
+## Features to Implement
+1. **Cypher Query Integration** ✅ Backend Complete
+   - ✅ Backend API with full Cypher support
+   - ✅ Query execution, validation, and history endpoints
+   - ✅ VR-optimized result formatting
+   - ✅ Query template system
+   - 🔲 VR UI for query input (keyboard/voice)
+   - 🔲 Visual query result integration
+   - 🔲 Query history browser in VR
+
+2. **Performance Optimization**
+   - Level-of-detail for large graphs
+   - Spatial indexing for efficient interaction
+   - Progressive loading for huge datasets
+
+3. **Advanced Visualization**
+   - Force-directed graph layout
+   - Clustering and grouping
+   - Heat maps and analytics
+   - Time-based animations
 
 ## Development Commands
 ```bash
-# Start development server
+# Start both frontend and backend servers
 npm run dev
 
+# Start only frontend (webpack dev server)
+npm run dev:frontend
+
+# Start only backend (Kùzu API server)
+npm run server
+
+# If npm run dev fails, run servers in separate terminals:
+# Terminal 1: npm run server
+# Terminal 2: npm run dev:frontend
+
 # The app runs on local network for Quest 3 testing
-# Access via: https://[local-ip]:8080
+# Frontend: https://[local-ip]:8081
+# Backend API: http://localhost:3000
 ```
 
 ## Testing
@@ -81,10 +126,22 @@ Three comprehensive sample databases are included:
 - The app uses a simplified architecture (app-simple.js) for the proof of concept
 
 ## Recent Work
-- Implemented comprehensive gesture detection system
-- Created experimental thumb menu UI (radial menu activated by thumbs up)
-- Fixed node position reset issue in double-pinch manipulation
-- Added separate VR/AR mode buttons with improved home screen UI
+- Fixed node position reset issue during double-pinch manipulation
+- Added separate VR/AR mode buttons preventing mode switching conflicts
+- Implemented debug mode with multiple activation methods (keyboard, button, gesture)
+- Created three sample databases with 100+ nodes each
+- Fixed node labels using correct 'label' property from data
+- Implemented node colors by type with dynamic legend
+- Added Legend toggle to thumb menu with proper debouncing
+- Implemented edge visualization with relationship labels
+- Integrated direct Kùzu database support with custom path option
+- Combined frontend and backend servers into single npm command
+- Fixed server connection issues and added better error handling
+- **Implemented complete Cypher query backend**:
+  - CypherQueryService with caching, validation, and VR formatting
+  - REST API endpoints for execute, validate, templates, and history
+  - Frontend DataService integration with all Cypher methods
+  - Comprehensive test suite for API verification
 
 ## Current Gesture Controls
 - **Left Pinch**: Grab individual nodes
@@ -104,11 +161,13 @@ Three comprehensive sample databases are included:
 - Menu locks in world space when activated for stability
 
 ## Next Steps
-1. Add edge visualization between related nodes
-2. Implement menu options (labels, filters, viz modes)
-3. Create Cypher query interface
-4. Add voice commands
-5. Optimize for larger graph datasets
+1. Create Cypher query interface with VR keyboard
+2. Add remaining thumb menu options (View modes, Filters, Settings)
+3. Implement force-directed graph layout
+4. Add voice commands for queries and navigation
+5. Optimize rendering for graphs with 1000+ nodes
+6. Add node search and filtering capabilities
+7. Implement graph analytics (centrality, clustering, etc.)
 
 ## TODO
 - Fix thumb menu labels to show text clearly (Legend, View, Filter, Settings) - currently only numbers are visible
@@ -121,25 +180,36 @@ Three comprehensive sample databases are included:
   - Current issue: Text orientation is not aligning properly with line direction
 
 ## Known Issues
-### Thumb Menu Node Snapping Bug
-**Symptoms:**
-- Thumb menu doesn't appear when making thumbs up gesture
-- When menu does activate, nodes snap back to their original positions
+### Edge Label Alignment
+- Text orientation not properly aligned with edge direction
+- Labels should read along the line like road text
+- Need to implement text flipping when viewed from behind
 
-**Root Cause Analysis:**
-- Issue appears after converting GraphNode from THREE.Mesh to THREE.Group
-- Likely conflicts between ManipulationController and thumb menu gesture detection
-- Possible issues:
-  1. Gesture conflict between thumbs up and pinch detection
-  2. Node position updates being reset when UI state changes
-  3. GraphNode Group structure not properly handled in all interaction code
+## Debug Mode
+Debug mode hides development features like gesture indicators and thumb menu direction lines.
 
-**Previous Fixes Attempted:**
-- Updated NodeManager hover/select to handle GraphNode groups
-- Updated ManipulationController findNearestNode to use sphere position
-- Fixed visual feedback to use sphere position for GraphNode groups
+**Activation Methods:**
+1. **Keyboard**: Press 'D' key (desktop only)
+2. **Button**: Click "Toggle Debug Mode" button on home screen
+3. **Gesture**: Double fist gesture (both hands make fists simultaneously)
 
-**Next Steps to Debug:**
-- Check if thumbs up gesture is being intercepted by ManipulationController
-- Verify node positions are properly maintained when UI state changes
-- Ensure all code paths properly handle GraphNode as Group vs Mesh
+**Hidden Features in Debug Mode:**
+- Hand joint spheres and bones visualization
+- Gesture state text displays
+- Thumb menu direction indicator line
+- Any other development/testing UI elements
+
+## Database Options
+1. **Demo**: Small 20-node graph for quick testing
+2. **Social Network**: 100+ people, companies, and interests
+3. **Knowledge Graph**: 100+ CS concepts and technologies  
+4. **Movie Database**: 100+ films, actors, and awards
+5. **Custom**: Load your own Kùzu database from disk
+   - Auto-fills with test database path: `/Users/timmac/Desktop/Kuzu3D/test-kuzu-db`
+   - Falls back to mock data if Kùzu connection fails
+
+## Test Database
+A test Kùzu database is created with `create-test-db.js`:
+- 4 People: Alice (30), Bob (25), Charlie (35), Diana (28)
+- 2 Companies: TechCorp (2010), DataSolutions (2015)
+- WorksAt relationships with "since" properties

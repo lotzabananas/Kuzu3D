@@ -24,7 +24,7 @@ export class EdgeManager {
 		});
 		
 		// Create edges
-		edgeDataArray.forEach((edgeData, index) => {
+		edgeDataArray.forEach((edgeData, _index) => {
 			const fromNode = nodeMap.get(edgeData.from);
 			const toNode = nodeMap.get(edgeData.to);
 			
@@ -157,7 +157,7 @@ export class EdgeManager {
 			// Calculate midpoint and direction
 			const midPoint = new THREE.Vector3().addVectors(fromPos, toPos).multiplyScalar(0.5);
 			const direction = new THREE.Vector3().subVectors(toPos, fromPos);
-			const distance = direction.length();
+			// const distance = direction.length(); // Reserved for future use
 			direction.normalize();
 			
 			// Position label at midpoint of the line

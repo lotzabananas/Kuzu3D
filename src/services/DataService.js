@@ -88,6 +88,114 @@ export class DataService {
 		}
 	}
 	
+	// Cypher query methods
+	
+	async executeCypherQuery(query, parameters = {}, options = {}) {
+		if (!this.connected) {
+			return {
+				success: false,
+				error: { message: 'Not connected to database' }
+			};
+		}
+		
+		try {
+			const response = await fetch(`${this.apiUrl}/cypher/execute`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ query, parameters, options }),
+				signal: AbortSignal.timeout(options.timeout || SERVER_CONFIG.timeout)
+			});
+			
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			
+			const result = await response.json();
+			return result;
+		} catch (error) {
+			console.error('Cypher query execution error:', error);
+			return {
+				success: false,
+				error: { 
+					message: `Query execution failed: ${error.message}`,
+					code: 'QUERY_ERROR'
+				}
+			};
+		}
+	}
+	
+	async validateCypherQuery(query) {
+		try {
+			const response = await fetch(`${this.apiUrl}/cypher/validate`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ query }),
+				signal: AbortSignal.timeout(SERVER_CONFIG.timeout)
+			});
+			
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			
+			const result = await response.json();
+			return result;
+		} catch (error) {
+			console.error('Cypher query validation error:', error);
+			return {
+				valid: false,
+				errors: [{ message: `Validation failed: ${error.message}` }]
+			};
+		}
+	}
+	
+	async getCypherTemplates() {
+		try {
+			const response = await fetch(`${this.apiUrl}/cypher/templates`, {
+				signal: AbortSignal.timeout(SERVER_CONFIG.timeout)
+			});
+			
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			
+			const result = await response.json();
+			return result;
+		} catch (error) {
+			console.error('Failed to fetch Cypher templates:', error);
+			return {
+				success: false,
+				templates: {},
+				error: { message: `Failed to fetch templates: ${error.message}` }
+			};
+		}
+	}
+	
+	async getCypherHistory() {
+		try {
+			const response = await fetch(`${this.apiUrl}/cypher/history`, {
+				signal: AbortSignal.timeout(SERVER_CONFIG.timeout)
+			});
+			
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			
+			const result = await response.json();
+			return result;
+		} catch (error) {
+			console.error('Failed to fetch query history:', error);
+			return {
+				success: false,
+				history: [],
+				error: { message: `Failed to fetch history: ${error.message}` }
+			};
+		}
+	}
+	
 	disconnect() {
 		this.connected = false;
 	}

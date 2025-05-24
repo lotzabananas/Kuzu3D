@@ -1,11 +1,4 @@
 export class Logger {
-	static logLevels = {
-		ERROR: 0,
-		WARN: 1,
-		INFO: 2,
-		DEBUG: 3
-	};
-	
 	constructor(name, level = Logger.logLevels.INFO) {
 		this.name = name;
 		this.level = level;
@@ -35,6 +28,14 @@ export class Logger {
 		}
 	}
 }
+
+// Define log levels as static property
+Logger.logLevels = {
+	ERROR: 0,
+	WARN: 1,
+	INFO: 2,
+	DEBUG: 3
+};
 
 // Global logger instance
 export const logger = new Logger('KuzuVR', Logger.logLevels.INFO);

@@ -223,7 +223,7 @@ export class Legend extends THREE.Group {
 		this.visible = false;
 	}
 	
-	updatePosition(handPosition, handQuaternion) {
+	updatePosition(handPosition, _handQuaternion) {
 		// Position legend above the left hand
 		if (handPosition && this.visible) {
 			this.position.copy(handPosition);

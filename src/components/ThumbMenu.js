@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { logger } from '../utils/Logger.js';
 import { debugManager } from '../utils/DebugManager.js';
+import { logger } from '../utils/Logger.js';
 
 /**
  * Experimental thumb-controlled radial menu
@@ -49,7 +49,7 @@ export class ThumbMenu {
 		
 		// Option labels
 		const optionLabels = ['Legend', 'View', 'Filter', 'Settings'];
-		const optionIcons = ['📊', '👁️', '🔍', '⚙️'];
+		// const optionIcons = ['📊', '👁️', '🔍', '⚙️']; // Reserved for future icon implementation
 		
 		for (let i = 0; i < this.config.optionCount; i++) {
 			// Calculate angle for this option
@@ -201,7 +201,7 @@ export class ThumbMenu {
 		logger.info('Thumb menu deactivated');
 	}
 	
-	update(leftHand, rightHand, isPinching) {
+	update(leftHand, _rightHand, isPinching) {
 		if (!this.isActive || !leftHand || !leftHand.joints) return;
 		
 		// Menu stays locked in position - no following wrist

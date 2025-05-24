@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
 import { GestureDetector } from './components/GestureDetector.js';
 import { GestureVisualizer } from './components/GestureVisualizer.js';
+import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
 
 export class HandTracking {
 	constructor(renderer, player) {

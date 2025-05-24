@@ -1,13 +1,15 @@
+// THREE is used implicitly by Three.js components
+// eslint-disable-next-line no-unused-vars
 import * as THREE from 'three';
+import { DataService } from './services/DataService.js';
 import { DebugPanel } from './components/DebugPanel.js';
-import { UI_CONFIG } from './constants/index.js';
-import { init } from './init.js';
 import { EdgeManager } from './managers/EdgeManager.js';
 import { NodeManager } from './managers/NodeManager.js';
 import { SceneManager } from './managers/SceneManager.js';
 import { UIManagerBasic } from './managers/UIManagerBasic.js';
-import { DataService } from './services/DataService.js';
+import { UI_CONFIG } from './constants/index.js';
 import { debugManager } from './utils/DebugManager.js';
+import { init } from './init.js';
 import { logger } from './utils/Logger.js';
 
 class KuzuVRApp {
@@ -72,7 +74,7 @@ class KuzuVRApp {
 		});
 	}
 	
-	onFrame(delta, _time, { scene, handTracking }) {
+	onFrame(delta, _time, { scene: _scene, handTracking: _handTracking }) {
 		// Update node animations
 		if (this.nodeManager) {
 			this.nodeManager.update(delta);
@@ -193,10 +195,11 @@ class KuzuVRApp {
 				
 				// Example actions for each option
 				switch(option) {
-					case 1:
+					case 1: {
 						const legendVisible = this.uiManager.legend.toggle();
 						logger.info(`Legend ${legendVisible ? 'shown' : 'hidden'}`);
 						break;
+					}
 					case 2:
 						logger.info('Option 2: Change visualization mode');
 						// TODO: Implement viz mode change
@@ -224,7 +227,7 @@ class KuzuVRApp {
 		});
 	}
 	
-	async loadDatabase(dbPath, statusDiv, uiContainer) {
+	async loadDatabase(dbPath, statusDiv, _uiContainer) {
 		if (!dbPath) {
 			statusDiv.textContent = 'Please enter a database path';
 			return;

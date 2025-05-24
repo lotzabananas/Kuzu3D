@@ -45,7 +45,7 @@ export class UIManagerBasic {
 		
 		const leftHand = this.handTracking.hands.left;
 		const rightHand = this.handTracking.hands.right;
-		const camera = this.renderer.xr.getCamera();
+		// const camera = this.renderer.xr.getCamera(); // Reserved for future use
 		
 		// Debug log hand tracking once
 		if (!this.debugLogged && (leftHand || rightHand)) {
