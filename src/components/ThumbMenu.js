@@ -12,6 +12,7 @@ export class ThumbMenu {
 		this.selectedOption = -1;
 		this.hasPinchedForSelection = false; // Track if pinch already processed
 		this.menuGroup = new THREE.Group();
+		this.driftEnabled = false; // Track drift state for visual feedback
 		
 		// Listen for debug mode changes
 		this.debugModeUnsubscribe = debugManager.onDebugModeChange((enabled) => {
@@ -48,7 +49,7 @@ export class ThumbMenu {
 		const anglePerOption = this.config.angleRange / this.config.optionCount;
 		
 		// Option labels
-		const optionLabels = ['Legend', 'Voice', 'Filter', 'Settings'];
+		const optionLabels = ['Legend', 'Voice', 'Drift', 'Spread'];
 		// const optionIcons = ['📊', '👁️', '🔍', '⚙️']; // Reserved for future icon implementation
 		
 		for (let i = 0; i < this.config.optionCount; i++) {
@@ -400,6 +401,24 @@ export class ThumbMenu {
 	
 	onSelect(callback) {
 		this.onSelectCallback = callback;
+	}
+	
+	setDriftState(enabled) {
+		this.driftEnabled = enabled;
+		this.updateDriftVisual();
+	}
+	
+	updateDriftVisual() {
+		// Update the drift option (option 2, index 2) visual to show state
+		if (this.options && this.options[2]) {
+			const driftOption = this.options[2];
+			const baseColor = this.driftEnabled ? 0x00aa00 : this.config.colors.inactive; // Green when enabled
+			
+			// Only update if not currently selected
+			if (this.selectedOption !== 2) {
+				driftOption.material.color.setHex(baseColor);
+			}
+		}
 	}
 	
 	addToScene(scene) {

@@ -1,11 +1,16 @@
 import * as THREE from 'three';
 import { VISUAL_CONFIG } from '../constants/index.js';
+import { GentleDriftManager, DriftModes } from './GentleDriftManager.js';
 
 export class SceneManager {
 	constructor(scene, renderer) {
 		this.scene = scene;
 		this.renderer = renderer;
 		this.isPassthroughEnabled = true;
+		
+		// Gentle drift system (standalone)
+		this.gentleDrift = DriftModes.gentle();
+		this.onDriftStateChangeCallback = null;
 		
 		this.setupLighting();
 		this.setupPassthrough();
@@ -60,7 +65,50 @@ export class SceneManager {
 		}
 	}
 	
+	// Gentle drift methods (completely standalone)
+	setGentleDrift(enabled) {
+		if (enabled) {
+			this.gentleDrift.enable();
+		} else {
+			this.gentleDrift.disable();
+		}
+	}
+	
+	// Set callback for drift state changes
+	onDriftStateChange(callback) {
+		this.onDriftStateChangeCallback = callback;
+		
+		// Set up auto-disable callback
+		this.gentleDrift.onAutoDisable(() => {
+			if (this.onDriftStateChangeCallback) {
+				this.onDriftStateChangeCallback(false);
+			}
+		});
+	}
+	
+	updateGentleDrift(nodes) {
+		// Give the drift system the current nodes
+		this.gentleDrift.setNodes(nodes);
+		this.gentleDrift.enable();
+	}
+	
+	// Call this every frame (super lightweight)
+	updateDrift() {
+		this.gentleDrift.update();
+	}
+	
+	// Call this when new query results arrive
+	nudgeNodesApart() {
+		this.gentleDrift.nudgeNodes();
+	}
+	
+	// Instant spread - snap nodes to final positions immediately
+	instantSpreadNodes() {
+		this.gentleDrift.instantSpread();
+	}
+	
 	dispose() {
+		this.gentleDrift.dispose();
 		this.scene.remove(this.ambientLight);
 		this.scene.remove(this.directionalLight);
 	}

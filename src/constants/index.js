@@ -49,6 +49,17 @@ export const VISUAL_CONFIG = {
 			default: 0x9013fe      // Violet
 		}
 	},
+	edge: {
+		defaultColor: 0x888888,     // Gray
+		width: 0.01,
+		opacity: 0.8,
+		// Color palette for auto-generation (HSL-based for good distribution)
+		colorPalette: {
+			hueStart: 0,           // Starting hue (0-360)
+			saturation: 0.7,       // Color saturation (0-1)
+			lightness: 0.5        // Color lightness (0-1)
+		}
+	},
 	grid: {
 		spacing: 0.5,
 		offsetY: 1.6,

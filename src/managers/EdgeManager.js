@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { logger } from '../utils/Logger.js';
+import { VISUAL_CONFIG } from '../constants/index.js';
+import { colorGenerator } from '../utils/ColorGenerator.js';
 
 export class EdgeManager {
 	constructor(scene) {
@@ -51,12 +53,13 @@ export class EdgeManager {
 		const positions = new Float32Array(6); // 2 points * 3 coordinates
 		geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 		
-		// Create line material
+		// Create line material with dynamically generated color
+		const edgeColor = colorGenerator.getColorForType(edgeData.type || 'default');
 		const material = new THREE.LineBasicMaterial({
-			color: this.getEdgeColor(edgeData.type),
+			color: edgeColor,
 			linewidth: 2,
 			transparent: true,
-			opacity: 0.6
+			opacity: VISUAL_CONFIG.edge.opacity
 		});
 		
 		const line = new THREE.Line(geometry, material);
@@ -100,33 +103,17 @@ export class EdgeManager {
 		const texture = new THREE.CanvasTexture(canvas);
 		const spriteMaterial = new THREE.SpriteMaterial({
 			map: texture,
-			transparent: true
+			transparent: true,
+			depthTest: false,    // Don't test depth - allows other lines to show through
+			depthWrite: false,   // Don't write to depth buffer
+			opacity: 0.9        // Slightly transparent to see lines behind
 		});
 		
 		const sprite = new THREE.Sprite(spriteMaterial);
 		sprite.scale.set(1, 0.25, 1);
+		sprite.renderOrder = 1000; // Render labels after lines
 		
 		return sprite;
-	}
-	
-	getEdgeColor(type) {
-		// Define colors for different edge types
-		const edgeColors = {
-			'WORKS_AT': 0x4a90e2,     // Blue
-			'MANAGES': 0xf5a623,      // Orange
-			'WORKS_ON': 0x7ed321,     // Green
-			'USES': 0xbd10e0,         // Purple
-			'LOCATED_IN': 0x50e3c2,   // Teal
-			'ATTENDING': 0xf8e71c,    // Yellow
-			'SPEAKING_AT': 0xff6b6b,  // Red
-			'KNOWS': 0x9013fe,        // Violet
-			'FOLLOWS': 0x00bcd4,      // Cyan
-			'LIKES': 0xff4081,        // Pink
-			// Default
-			'default': 0x888888       // Gray
-		};
-		
-		return edgeColors[type] || edgeColors.default;
 	}
 	
 	update() {
@@ -190,6 +177,24 @@ export class EdgeManager {
 	
 	setVisibility(visible) {
 		this.edgeGroup.visible = visible;
+	}
+	
+	/**
+	 * Pre-generate colors for relationship types from schema
+	 * This ensures consistent colors throughout the session
+	 */
+	generateColorsFromSchema(relationshipTypes) {
+		if (relationshipTypes && relationshipTypes.length > 0) {
+			colorGenerator.generateColorsForTypes(relationshipTypes);
+			logger.info(`Generated colors for ${relationshipTypes.length} relationship types`);
+		}
+	}
+	
+	/**
+	 * Get the color mapping for legend display
+	 */
+	getEdgeColorMap() {
+		return colorGenerator.getAllColors();
 	}
 	
 	dispose() {

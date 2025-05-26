@@ -88,6 +88,21 @@ export class DataService {
 		}
 	}
 	
+	// Get database schema
+	async getSchema() {
+		try {
+			const response = await fetch(`${this.apiUrl}/schema`);
+			const result = await response.json();
+			return result;
+		} catch (error) {
+			console.error('Failed to fetch schema:', error);
+			return {
+				success: false,
+				message: `Failed to fetch schema: ${error.message}`
+			};
+		}
+	}
+	
 	// Cypher query methods
 	
 	async executeCypherQuery(query, parameters = {}, options = {}) {

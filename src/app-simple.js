@@ -47,6 +47,13 @@ class KuzuVRApp {
 		// Initialize basic UI Manager
 		this.uiManager = new UIManagerBasic(scene, camera, renderer, handTracking);
 		
+		// Set up drift state callback for menu visual updates
+		this.sceneManager.onDriftStateChange((enabled) => {
+			if (this.uiManager && this.uiManager.thumbMenu) {
+				this.uiManager.thumbMenu.setDriftState(enabled);
+			}
+		});
+		
 		// Initialize Voice Input
 		this.voiceInput = new VoiceInput();
 		scene.add(this.voiceInput.container);
@@ -108,6 +115,11 @@ class KuzuVRApp {
 		// Update UI Manager
 		if (this.uiManager) {
 			this.uiManager.update(delta, this.nodeManager);
+		}
+		
+		// Update gentle drift (super lightweight)
+		if (this.sceneManager) {
+			this.sceneManager.updateDrift();
 		}
 		
 		// Update voice input
@@ -258,79 +270,86 @@ class KuzuVRApp {
 						break;
 					}
 					case 3: {
-						console.log('🔄 REFRESH GRAPH WITH ALL NODES');
+						// Toggle gentle drift on/off
+						console.log('🌊 TOGGLE GENTLE DRIFT');
 						
-						// Query for ALL nodes from all tables
-						// Try querying all nodes first, handle Project table error gracefully
-						fetch('/api/cypher/execute', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ 
-								query: 'MATCH (n) RETURN n LIMIT 150',
-								parameters: {},
-								options: {}
-							})
-						})
-						.then(r => r.json())
-						.then(result => {
-							console.log('🔄 All nodes query result:', result);
+						if (this.sceneManager && this.sceneManager.gentleDrift) {
+							const stats = this.sceneManager.gentleDrift.getStats();
+							const currentlyEnabled = stats.isEnabled;
 							
-							if (result.success && result.data && result.data.nodes) {
-								const nodes = result.data.nodes;
-								console.log('🔄 Found', nodes.length, 'total nodes');
+							if (currentlyEnabled) {
+								// Turn OFF drift
+								this.sceneManager.setGentleDrift(false);
+								console.log('🌊 Gentle drift DISABLED');
 								
-								// Transform nodes
-								const transformedNodes = nodes.map((node, index) => ({
-									id: node.id || `node_${index}`,
-									data: node.properties || {},
-									label: node.properties?.name || node.label || `Node ${index}`,
-									type: node.type || node.label
-								}));
-								
-								// Update visualization
-								this.nodeManager.clearNodes();
-								this.nodeManager.createNodes(transformedNodes);
-								
-								// Update legend
-								if (this.uiManager && this.uiManager.legend) {
-									this.uiManager.legend.updateNodeTypes(transformedNodes);
+								// Update menu visual
+								if (this.uiManager && this.uiManager.thumbMenu) {
+									this.uiManager.thumbMenu.setDriftState(false);
 								}
 								
-								// Now query for all relationships
-								fetch('/api/edges', {
-									method: 'GET'
-								})
-								.then(r => r.json())
-								.then(edgeResult => {
-									console.log('🔄 Edge query result:', edgeResult);
-									if (edgeResult.success && edgeResult.edges) {
-										console.log('🔄 Found', edgeResult.edges.length, 'edges');
-										this.edgeManager.createEdges(edgeResult.edges, this.nodeManager);
-									}
-								});
-								
-								// Show success
 								if (this.voiceInput) {
-									this.voiceInput.showTranscriptText(`Loaded ${nodes.length} nodes!`);
+									this.voiceInput.showTranscriptText('Gentle drift OFF');
 								}
-							} else if (result.error) {
-								// Fallback to individual table queries if MATCH (n) fails
-								console.log('🔄 Falling back to individual table queries...');
-								this.loadNodesByTable();
+							} else {
+								// Turn ON drift and give it current nodes
+								if (this.nodeManager && this.nodeManager.getNodes().length > 1) {
+									this.sceneManager.updateGentleDrift(this.nodeManager.getNodes());
+									this.sceneManager.nudgeNodesApart();
+									console.log('🌊 Gentle drift ENABLED');
+									
+									// Update menu visual
+									if (this.uiManager && this.uiManager.thumbMenu) {
+										this.uiManager.thumbMenu.setDriftState(true);
+									}
+									
+									if (this.voiceInput) {
+										this.voiceInput.showTranscriptText('Gentle drift ON - nodes will spread apart');
+									}
+								} else {
+									console.log('🌊 Need 2+ nodes for drift to work');
+									
+									if (this.voiceInput) {
+										this.voiceInput.showTranscriptText('Need 2+ nodes for drift');
+									}
+								}
 							}
-						})
-						.catch(error => {
-							console.error('🔄 ERROR:', error);
-							this.loadNodesByTable(); // Fallback
-						});
+						} else {
+							console.error('🌊 SceneManager or GentleDrift not available');
+							
+							if (this.voiceInput) {
+								this.voiceInput.showTranscriptText('Drift system unavailable');
+							}
+						}
 						
 						break;
 					}
 					
-					case 4:
-						logger.info('Option 4: Settings');
-						// TODO: Implement settings menu
+					case 4: {
+						// Instant spread - snap nodes to final positions
+						console.log('⚡ INSTANT SPREAD NODES');
+						
+						if (this.sceneManager && this.nodeManager && this.nodeManager.getNodes().length > 1) {
+							// Give the drift system current nodes for instant calculation
+							this.sceneManager.updateGentleDrift(this.nodeManager.getNodes());
+							
+							// Perform instant spread
+							this.sceneManager.instantSpreadNodes();
+							
+							console.log('⚡ Nodes spread instantly');
+							
+							if (this.voiceInput) {
+								this.voiceInput.showTranscriptText('Nodes spread instantly!');
+							}
+						} else {
+							console.log('⚡ Need 2+ nodes for instant spread');
+							
+							if (this.voiceInput) {
+								this.voiceInput.showTranscriptText('Need 2+ nodes to spread');
+							}
+						}
+						
 						break;
+					}
 				}
 			});
 		}
@@ -370,6 +389,20 @@ class KuzuVRApp {
 			
 			if (!connectResult.success) {
 				throw new Error(connectResult.message);
+			}
+			
+			// Get schema and pre-generate edge colors
+			try {
+				const schemaResult = await this.dataService.getSchema();
+				if (schemaResult.success && schemaResult.schema) {
+					const { relationshipTypes } = schemaResult.schema;
+					if (relationshipTypes && this.edgeManager) {
+						this.edgeManager.generateColorsFromSchema(relationshipTypes);
+						logger.info('Pre-generated colors for relationship types:', relationshipTypes);
+					}
+				}
+			} catch (schemaError) {
+				logger.warn('Could not fetch schema for color generation:', schemaError);
 			}
 			
 			// Load nodes
