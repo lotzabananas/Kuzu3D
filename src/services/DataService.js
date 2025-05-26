@@ -91,7 +91,14 @@ export class DataService {
 	// Cypher query methods
 	
 	async executeCypherQuery(query, parameters = {}, options = {}) {
+		console.log('🔍 Step 3: DataService.executeCypherQuery called');
+		console.log('🔍 Step 3: Connected:', this.connected);
+		console.log('🔍 Step 3: Query:', query);
+		console.log('🔍 Step 3: Parameters:', parameters);
+		console.log('🔍 Step 3: Options:', options);
+		
 		if (!this.connected) {
+			console.log('❌ Step 3: Not connected to database');
 			return {
 				success: false,
 				error: { message: 'Not connected to database' }
@@ -99,20 +106,32 @@ export class DataService {
 		}
 		
 		try {
-			const response = await fetch(`${this.apiUrl}/cypher/execute`, {
+			const requestUrl = `${this.apiUrl}/cypher/execute`;
+			const requestBody = { query, parameters, options };
+			
+			console.log('🔍 Step 4: Making fetch request to:', requestUrl);
+			console.log('🔍 Step 4: Request body:', JSON.stringify(requestBody, null, 2));
+			
+			const response = await fetch(requestUrl, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({ query, parameters, options }),
+				body: JSON.stringify(requestBody),
 				signal: AbortSignal.timeout(options.timeout || SERVER_CONFIG.timeout)
 			});
+			
+			console.log('🔍 Step 5: Response received');
+			console.log('🔍 Step 5: Status:', response.status);
+			console.log('🔍 Step 5: OK:', response.ok);
 			
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
 			
 			const result = await response.json();
+			console.log('🔍 Step 6: Response JSON parsed');
+			console.log('🔍 Step 6: Result:', JSON.stringify(result, null, 2));
 			return result;
 		} catch (error) {
 			console.error('Cypher query execution error:', error);

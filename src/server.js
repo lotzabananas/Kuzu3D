@@ -65,7 +65,6 @@ app.post('/api/connect', async (req, res) => {
 		// Close existing connection if any
 		if (conn) conn = null;
 		if (db) db = null;
-		useMock = false;
 		
 		console.log('Attempting to connect to Kùzu database:', dbPath);
 		
@@ -78,7 +77,7 @@ app.post('/api/connect', async (req, res) => {
 		await conn.query('RETURN 1');
 		
 		// Initialize CypherQueryService
-		cypherService = new CypherQueryService({ conn });
+		cypherService = new CypherQueryService(conn);
 		
 		console.log('Successfully connected to Kùzu database');
 		res.json({ success: true, message: 'Connected to Kùzu database' });
@@ -209,13 +208,6 @@ app.get('/api/edges', async (req, res) => {
 
 // Execute Cypher query
 app.post('/api/cypher/execute', async (req, res) => {
-	if (useMock) {
-		return res.json({
-			success: false,
-			error: { message: 'Cypher queries not supported in mock mode' }
-		});
-	}
-	
 	if (!cypherService) {
 		return res.json({
 			success: false,
@@ -246,13 +238,6 @@ app.post('/api/cypher/execute', async (req, res) => {
 
 // Validate Cypher query
 app.post('/api/cypher/validate', async (req, res) => {
-	if (useMock) {
-		return res.json({
-			valid: false,
-			errors: [{ message: 'Cypher validation not supported in mock mode' }]
-		});
-	}
-	
 	if (!cypherService) {
 		return res.json({
 			valid: false,
@@ -284,7 +269,16 @@ app.post('/api/cypher/validate', async (req, res) => {
 // Get query templates
 app.get('/api/cypher/templates', (req, res) => {
 	if (!cypherService) {
-		cypherService = new CypherQueryService({ conn: null });
+		// Return templates without creating a service with null connection
+		res.json({
+			success: true,
+			templates: [
+				{ name: "Show all nodes", query: "MATCH (n) RETURN n LIMIT 100" },
+				{ name: "Show node types", query: "MATCH (n) RETURN DISTINCT labels(n) as types" },
+				{ name: "Show relationships", query: "MATCH ()-[r]->() RETURN DISTINCT type(r) as relationships" }
+			]
+		});
+		return;
 	}
 	
 	res.json({

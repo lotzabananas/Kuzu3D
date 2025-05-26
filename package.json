@@ -8,6 +8,7 @@
 		"eslint-config-prettier": "9.1.0",
 		"eslint-webpack-plugin": "4.2.0",
 		"html-webpack-plugin": "5.6.0",
+		"node-fetch": "^3.3.2",
 		"prettier": "3.3.3",
 		"webpack": "5.94.0",
 		"webpack-cli": "5.1.4",
@@ -23,6 +24,7 @@
 		"server:prod": "NODE_ENV=production node src/server.js",
 		"format": "prettier --write ./src/**/*",
 		"lint": "eslint src/**/*.js",
+		"test:cypher": "node test-cypher-pipeline.js",
 		"start": "npm run server:prod",
 		"preview": "npm run build && npm run start"
 	},

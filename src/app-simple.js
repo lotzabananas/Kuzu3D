@@ -252,10 +252,76 @@ class KuzuVRApp {
 						}
 						break;
 					}
-					case 3:
-						logger.info('Option 3: Filter nodes');
-						// TODO: Implement node filtering
+					case 3: {
+						console.log('🔄 REFRESH GRAPH WITH ALL NODES');
+						
+						// Query for ALL nodes from all tables
+						// Try querying all nodes first, handle Project table error gracefully
+						fetch('/api/cypher/execute', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ 
+								query: 'MATCH (n) RETURN n LIMIT 150',
+								parameters: {},
+								options: {}
+							})
+						})
+						.then(r => r.json())
+						.then(result => {
+							console.log('🔄 All nodes query result:', result);
+							
+							if (result.success && result.data && result.data.nodes) {
+								const nodes = result.data.nodes;
+								console.log('🔄 Found', nodes.length, 'total nodes');
+								
+								// Transform nodes
+								const transformedNodes = nodes.map((node, index) => ({
+									id: node.id || `node_${index}`,
+									data: node.properties || {},
+									label: node.properties?.name || node.label || `Node ${index}`,
+									type: node.type || node.label
+								}));
+								
+								// Update visualization
+								this.nodeManager.clearNodes();
+								this.nodeManager.createNodes(transformedNodes);
+								
+								// Update legend
+								if (this.uiManager && this.uiManager.legend) {
+									this.uiManager.legend.updateNodeTypes(transformedNodes);
+								}
+								
+								// Now query for all relationships
+								fetch('/api/edges', {
+									method: 'GET'
+								})
+								.then(r => r.json())
+								.then(edgeResult => {
+									console.log('🔄 Edge query result:', edgeResult);
+									if (edgeResult.success && edgeResult.edges) {
+										console.log('🔄 Found', edgeResult.edges.length, 'edges');
+										this.edgeManager.createEdges(edgeResult.edges, this.nodeManager);
+									}
+								});
+								
+								// Show success
+								if (this.voiceInput) {
+									this.voiceInput.showTranscriptText(`Loaded ${nodes.length} nodes!`);
+								}
+							} else if (result.error) {
+								// Fallback to individual table queries if MATCH (n) fails
+								console.log('🔄 Falling back to individual table queries...');
+								this.loadNodesByTable();
+							}
+						})
+						.catch(error => {
+							console.error('🔄 ERROR:', error);
+							this.loadNodesByTable(); // Fallback
+						});
+						
 						break;
+					}
+					
 					case 4:
 						logger.info('Option 4: Settings');
 						// TODO: Implement settings menu
@@ -361,6 +427,194 @@ class KuzuVRApp {
 		} catch (error) {
 			logger.error('Failed to start application:', error);
 		}
+	}
+	
+	async executeCypherQuery(query) {
+		try {
+			console.log('🔍 === CYPHER PIPELINE DEBUG START ===');
+			console.log('🔍 Step 1: VR App executeCypherQuery called with:', query);
+			console.log('🔍 Step 2: DataService connected:', this.dataService.connected);
+			console.log('🔍 Step 2: DataService object:', this.dataService);
+			console.log('🔍 Step 2: DataService apiUrl:', this.dataService.apiUrl);
+			
+			// Check if connected to database
+			if (!this.dataService.connected) {
+				console.log('❌ DataService says not connected. Attempting to reconnect...');
+				
+				// Try to reconnect using the current database path
+				const dbPathInput = document.getElementById('db-path');
+				if (dbPathInput && dbPathInput.value) {
+					console.log('🔄 Reconnecting to:', dbPathInput.value);
+					const connectResult = await this.dataService.connect(dbPathInput.value);
+					console.log('🔄 Reconnect result:', connectResult);
+					
+					if (!connectResult.success) {
+						if (this.voiceInput) {
+							this.voiceInput.showTranscriptText(`Connection failed: ${connectResult.message}`);
+						}
+						return;
+					}
+				} else {
+					if (this.voiceInput) {
+						this.voiceInput.showTranscriptText('Not connected to database');
+					}
+					return;
+				}
+			}
+			
+			// Use DataService to execute the query
+			console.log('🔍 Step 7: Calling DataService.executeCypherQuery...');
+			const result = await this.dataService.executeCypherQuery(query);
+			
+			console.log('🔍 Step 8: DataService returned result');
+			console.log('🔍 Step 8: result.success:', result.success);
+			console.log('🔍 Step 8: result.data:', result.data);
+			console.log('🔍 Step 8: result.data type:', typeof result.data);
+			if (result.data) {
+				console.log('🔍 Step 8: result.data.nodes:', result.data.nodes);
+				console.log('🔍 Step 8: result.data.nodes length:', result.data.nodes?.length);
+			}
+			
+			if (result.success) {
+				console.log('✅ Step 9: Cypher query successful');
+				console.log('✅ Step 9: Full result object:', JSON.stringify(result, null, 2));
+				
+				// Check different possible data structures
+				let nodeCount = 0;
+				if (result.data?.nodes) {
+					nodeCount = result.data.nodes.length;
+					console.log('🔍 Step 9: Found nodes array with', nodeCount, 'items');
+				} else if (Array.isArray(result.data)) {
+					nodeCount = result.data.length;
+					console.log('🔍 Step 9: result.data is direct array with', nodeCount, 'items');
+				}
+				
+				logger.info(`Query returned ${nodeCount} results`);
+				
+				// For now, just log the results
+				// TODO: Display results in VR space
+				if (nodeCount > 0) {
+					const dataToShow = result.data?.nodes || result.data;
+					console.log('Query results:', dataToShow.slice(0, 3)); // Show first 3 results
+					
+					// Show a simple count in VR (reuse voice text display)
+					if (this.voiceInput) {
+						console.log('🎯 Showing result text in VR...');
+						this.voiceInput.showTranscriptText(`Query returned ${nodeCount} results`);
+					} else {
+						console.log('❌ VoiceInput not available for result display');
+					}
+				} else {
+					console.log('⚠️ No data in result or data is empty');
+					if (this.voiceInput) {
+						this.voiceInput.showTranscriptText('Query returned no results');
+					}
+				}
+			} else {
+				console.error('❌ Cypher query failed:', result);
+				console.error('❌ Full error object:', JSON.stringify(result, null, 2));
+				logger.error('Cypher query failed:', result.error);
+				
+				// Show error in VR with proper error message
+				const errorMsg = result.error?.message || result.error || 'Unknown error';
+				if (this.voiceInput) {
+					this.voiceInput.showTranscriptText(`Query failed: ${errorMsg}`);
+				}
+			}
+		} catch (error) {
+			console.error('❌ Error executing Cypher query:', error);
+			logger.error('Error executing Cypher query:', error);
+			
+			// Show error in VR
+			if (this.voiceInput) {
+				this.voiceInput.showTranscriptText(`Error: ${error.message}`);
+			}
+		}
+	}
+	
+	loadNodesByTable() {
+		const queries = [
+			'MATCH (p:Person) RETURN p',
+			'MATCH (c:Company) RETURN c'
+			// Skip Project if it doesn't exist
+		];
+		
+		// Show loading message
+		if (this.voiceInput) {
+			this.voiceInput.showTranscriptText('Loading all nodes...');
+		}
+		
+		// Execute all queries and combine results
+		Promise.all(queries.map(query => 
+			fetch('/api/cypher/execute', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ query, parameters: {}, options: {} })
+			}).then(r => r.json())
+		))
+		.then(results => {
+			console.log('🔄 Query results:', results);
+			
+			// Combine all nodes from all queries
+			let allNodes = [];
+			results.forEach(result => {
+				if (result.success && result.data && result.data.nodes) {
+					allNodes = allNodes.concat(result.data.nodes);
+				}
+			});
+			
+			console.log('🔄 Total nodes found:', allNodes.length);
+			
+			if (allNodes.length > 0) {
+				// Transform nodes to match expected format
+				const transformedNodes = allNodes.map((node, index) => ({
+					id: node.id || `node_${index}`,
+					data: node.properties || {},
+					label: node.properties?.name || node.label || `Node ${index}`,
+					type: node.type || node.label
+				}));
+				
+				console.log('🔄 Updating visualization with', transformedNodes.length, 'nodes');
+				
+				// Clear existing nodes and create new ones
+				this.nodeManager.clearNodes();
+				this.nodeManager.createNodes(transformedNodes);
+				
+				// Update legend
+				if (this.uiManager && this.uiManager.legend) {
+					this.uiManager.legend.updateNodeTypes(transformedNodes);
+				}
+				
+				// Load edges from server
+				fetch('/api/edges', {
+					method: 'GET'
+				})
+				.then(r => r.json())
+				.then(edgeResult => {
+					console.log('🔄 Edge result:', edgeResult);
+					if (edgeResult.success && edgeResult.edges) {
+						console.log('🔄 Found', edgeResult.edges.length, 'edges');
+						this.edgeManager.createEdges(edgeResult.edges, this.nodeManager);
+					}
+				});
+				
+				// Show success message
+				if (this.voiceInput) {
+					this.voiceInput.showTranscriptText(`Loaded ${allNodes.length} nodes!`);
+				}
+			} else {
+				console.log('🔄 No nodes found');
+				if (this.voiceInput) {
+					this.voiceInput.showTranscriptText('No nodes found');
+				}
+			}
+		})
+		.catch(error => {
+			console.error('🔄 ERROR:', error);
+			if (this.voiceInput) {
+				this.voiceInput.showTranscriptText('Error: ' + error.message);
+			}
+		});
 	}
 }
 

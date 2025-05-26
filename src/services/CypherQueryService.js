@@ -1,8 +1,8 @@
 import { Logger } from '../utils/Logger.js';
 
 export default class CypherQueryService {
-  constructor(database) {
-    this.db = database;
+  constructor(connection) {
+    this.conn = connection; // Direct connection object
     this.logger = new Logger('CypherQueryService');
     this.queryCache = new Map();
     this.cacheMaxSize = 100;
@@ -33,8 +33,10 @@ export default class CypherQueryService {
       const limitedQuery = this.applyLimit(cypher, limit);
       
       // Execute query with timeout
+      // Note: Kùzu query method signature: query(sql, progressCallback, params)
+      const progressCallback = () => {}; // Empty progress callback
       const result = await this.executeWithTimeout(
-        this.db.conn.query(limitedQuery, params),
+        this.conn.query(limitedQuery, progressCallback),
         timeout
       );
       
@@ -90,7 +92,11 @@ export default class CypherQueryService {
     try {
       // Kuzu doesn't have a separate validation API, so we'll do basic checks
       // and attempt a dry run with LIMIT 0
-      const validationQuery = `${cypher} LIMIT 0`;
+      let validationQuery = cypher.trim();
+      // Only add LIMIT 0 if query doesn't already have a LIMIT clause
+      if (!validationQuery.toLowerCase().includes('limit')) {
+        validationQuery = `${validationQuery} LIMIT 0`;
+      }
       
       // Basic syntax checks
       const syntaxErrors = this.basicSyntaxCheck(cypher);
@@ -103,7 +109,8 @@ export default class CypherQueryService {
       }
       
       // Try to execute with limit 0
-      await this.db.conn.query(validationQuery);
+      const progressCallback = () => {}; // Empty progress callback
+      await this.conn.query(validationQuery, progressCallback);
       
       return {
         valid: true,
