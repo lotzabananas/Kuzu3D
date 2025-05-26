@@ -233,6 +233,11 @@ export class VoiceInput {
 		
 		// Create floating transcript text in front of user
 		this.showTranscriptText(transcript);
+		
+		// Emit event for natural language processing
+		if (this.onTranscriptReceived) {
+			this.onTranscriptReceived(transcript);
+		}
 	}
 	
 	showTranscriptText(transcript) {

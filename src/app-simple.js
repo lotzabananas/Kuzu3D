@@ -51,6 +51,11 @@ class KuzuVRApp {
 		this.voiceInput = new VoiceInput();
 		scene.add(this.voiceInput.container);
 		
+		// Handle voice transcripts
+		this.voiceInput.onTranscriptReceived = async (transcript) => {
+			await this.processVoiceCommand(transcript);
+		};
+		
 		// Add gesture visualizer to scene
 		this.handTracking.addVisualizerToScene(scene);
 		
@@ -418,6 +423,36 @@ class KuzuVRApp {
 		}
 	}
 	
+	async processVoiceCommand(transcript) {
+		logger.info('Processing voice command:', transcript);
+		
+		try {
+			// First, convert natural language to Cypher
+			const response = await fetch('/api/cypher/fromText', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text: transcript })
+			});
+			
+			if (!response.ok) {
+				throw new Error('Failed to convert to Cypher');
+			}
+			
+			const { cypher } = await response.json();
+			logger.info('Converted to Cypher:', cypher);
+			
+			// Execute the Cypher query
+			await this.executeCypherQuery(cypher);
+			
+		} catch (error) {
+			logger.error('Failed to process voice command:', error);
+			// Show error message in VR
+			if (this.voiceInput) {
+				this.voiceInput.showTranscriptText(`Error: ${error.message}`);
+			}
+		}
+	}
+	
 	async start() {
 		try {
 			await init(
@@ -491,16 +526,59 @@ class KuzuVRApp {
 				
 				logger.info(`Query returned ${nodeCount} results`);
 				
-				// For now, just log the results
-				// TODO: Display results in VR space
+				// Update the visualization with query results
 				if (nodeCount > 0) {
-					const dataToShow = result.data?.nodes || result.data;
-					console.log('Query results:', dataToShow.slice(0, 3)); // Show first 3 results
+					const nodes = result.data?.nodes || result.data;
+					console.log('🔄 Updating visualization with', nodes.length, 'nodes');
 					
-					// Show a simple count in VR (reuse voice text display)
+					// Transform nodes to ensure proper structure
+					const transformedNodes = nodes.map(node => {
+						// Handle different data structures
+						if (node.n) {
+							// For Cypher query results, node.n contains the actual node
+							const nodeData = node.n;
+							return {
+								id: nodeData._id || `node_${Math.random()}`,
+								label: nodeData.name || nodeData._label || 'Node',
+								type: nodeData._label,
+								properties: nodeData
+							};
+						}
+						// Fallback for other formats
+						return {
+							id: node._id || node.id || `node_${Math.random()}`,
+							label: node.properties?.name || node.name || node._label || node.label || 'Node',
+							type: node._label || node.label,
+							properties: node.properties || node
+						};
+					});
+					
+					// Update visualization
+					this.nodeManager.clearNodes();
+					this.nodeManager.createNodes(transformedNodes);
+					
+					// Update legend
+					if (this.uiManager && this.uiManager.legend) {
+						this.uiManager.legend.updateNodeTypes(transformedNodes);
+					}
+					
+					// Query for relationships
+					fetch('/api/edges', {
+						method: 'GET'
+					})
+					.then(r => r.json())
+					.then(edgeResult => {
+						console.log('🔄 Edge query result:', edgeResult);
+						if (edgeResult.success && edgeResult.edges) {
+							console.log('🔄 Found', edgeResult.edges.length, 'edges');
+							this.edgeManager.createEdges(edgeResult.edges, this.nodeManager);
+						}
+					});
+					
+					// Show success message
 					if (this.voiceInput) {
-						console.log('🎯 Showing result text in VR...');
-						this.voiceInput.showTranscriptText(`Query returned ${nodeCount} results`);
+						console.log('🎯 Showing success in VR...');
+						this.voiceInput.showTranscriptText(`Loaded ${nodeCount} nodes!`);
 					} else {
 						console.log('❌ VoiceInput not available for result display');
 					}

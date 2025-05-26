@@ -4,6 +4,7 @@ import kuzu from 'kuzu';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import CypherQueryService from './services/CypherQueryService.js';
+import { NaturalLanguageService } from './services/NaturalLanguageService.js';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import multer from 'multer';
@@ -46,6 +47,15 @@ const upload = multer({
 let db = null;
 let conn = null;
 let cypherService = null;
+let nlService = null;
+
+// Initialize Natural Language Service
+if (process.env.OPENAI_API_KEY) {
+	nlService = new NaturalLanguageService(process.env.OPENAI_API_KEY);
+	console.log('✅ Natural Language Service initialized');
+} else {
+	console.warn('⚠️  No OpenAI API key found, natural language features disabled');
+}
 
 // Endpoint to connect to database
 app.post('/api/connect', async (req, res) => {
@@ -505,13 +515,24 @@ app.post('/api/cypher/fromText', async (req, res) => {
 			});
 		}
 
-		// For now, just echo back the text
-		// TODO: Implement GPT-based Cypher generation
-		res.json({
-			success: true,
-			cypher: `// TODO: Convert "${text}" to Cypher`,
-			explanation: 'Natural language to Cypher conversion not yet implemented'
-		});
+		if (!nlService) {
+			return res.status(503).json({
+				success: false,
+				error: { message: 'Natural language service not available. Please set OPENAI_API_KEY.' }
+			});
+		}
+
+		try {
+			const cypherQuery = await nlService.convertToCypher(text);
+			res.json({
+				success: true,
+				cypher: cypherQuery,
+				originalText: text
+			});
+		} catch (conversionError) {
+			console.error('Cypher conversion error:', conversionError);
+			throw conversionError;
+		}
 
 	} catch (error) {
 		console.error('Cypher generation error:', error);
