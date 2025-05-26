@@ -32,10 +32,14 @@ IMPORTANT: You MUST only use the node types and relationship types listed above.
 
         systemPrompt += `
 
+CRITICAL RULE: For relationship queries, ALWAYS return ALL relevant nodes and relationships, not just one side.
+
 Examples:
 "show all people" → MATCH (p:Person) RETURN p
 "show me all the people" → MATCH (p:Person) RETURN p
-"who works at TechCorp" → MATCH (p:Person)-[:WorksAt]->(c:Company {name: 'TechCorp'}) RETURN p
+"who works at TechCorp" → MATCH (p:Person)-[:WorksAt]->(c:Company {name: 'TechCorp'}) RETURN p, c
+"show all relationships to Java" → MATCH (n)-[r]->(t:Technology {name: 'Java'}) RETURN n, r, t
+"show everyone who knows Leo Brown" → MATCH (p:Person)-[r:Knows]->(leo:Person {name: 'Leo Brown'}) RETURN p, r, leo
 "show all nodes" → MATCH (n) RETURN n
 "show me 10 people" → MATCH (p:Person) RETURN p LIMIT 10`;
 
