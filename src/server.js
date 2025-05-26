@@ -503,6 +503,52 @@ app.post('/api/voice/transcribe', upload.single('audio'), async (req, res) => {
 	}
 });
 
+// Get database schema
+app.get('/api/schema', async (req, res) => {
+	if (!conn) {
+		return res.json({ success: false, message: 'Not connected to database' });
+	}
+	
+	try {
+		// Get all tables and their types
+		const tablesQuery = await conn.query('CALL show_tables() RETURN *');
+		const tables = await tablesQuery.getAll();
+		
+		const nodeTypes = tables.filter(t => t.type === 'NODE').map(t => t.name);
+		const relationshipTypes = tables.filter(t => t.type === 'REL').map(t => t.name);
+		
+		// Get sample data to understand common properties
+		const sampleData = {};
+		for (const nodeType of nodeTypes.slice(0, 5)) { // Limit to first 5 for performance
+			try {
+				const sampleQuery = await conn.query(`MATCH (n:${nodeType}) RETURN n LIMIT 3`);
+				const samples = await sampleQuery.getAll();
+				if (samples.length > 0) {
+					const properties = Object.keys(samples[0].n).filter(key => !key.startsWith('_'));
+					sampleData[nodeType] = properties;
+				}
+			} catch (err) {
+				console.warn(`Failed to get sample for ${nodeType}:`, err.message);
+			}
+		}
+		
+		res.json({
+			success: true,
+			schema: {
+				nodeTypes,
+				relationshipTypes,
+				sampleProperties: sampleData
+			}
+		});
+	} catch (error) {
+		console.error('Failed to get schema:', error);
+		res.json({ 
+			success: false, 
+			message: `Failed to get schema: ${error.message}` 
+		});
+	}
+});
+
 // Convert natural language to Cypher (for future use)
 app.post('/api/cypher/fromText', async (req, res) => {
 	try {
@@ -522,8 +568,24 @@ app.post('/api/cypher/fromText', async (req, res) => {
 			});
 		}
 
+		// Get current database schema
+		let schema = null;
+		if (conn) {
+			try {
+				const tablesQuery = await conn.query('CALL show_tables() RETURN *');
+				const tables = await tablesQuery.getAll();
+				
+				const nodeTypes = tables.filter(t => t.type === 'NODE').map(t => t.name);
+				const relationshipTypes = tables.filter(t => t.type === 'REL').map(t => t.name);
+				
+				schema = { nodeTypes, relationshipTypes };
+			} catch (schemaError) {
+				console.warn('Failed to get schema for NL conversion:', schemaError.message);
+			}
+		}
+
 		try {
-			const cypherQuery = await nlService.convertToCypher(text);
+			const cypherQuery = await nlService.convertToCypher(text, schema);
 			res.json({
 				success: true,
 				cypher: cypherQuery,

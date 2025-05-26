@@ -10,7 +10,7 @@ export class NaturalLanguageService {
     }
 
     async convertToCypher(naturalLanguage, schema = null) {
-        const systemPrompt = `Convert natural language to Cypher query. Output ONLY the query, no explanation.
+        let systemPrompt = `Convert natural language to Cypher query. Output ONLY the query, no explanation.
 
 CRITICAL: NEVER add LIMIT to any query unless the user explicitly says "limit" or specifies a number.
 
@@ -19,6 +19,18 @@ Rules:
 - Use RETURN to specify output
 - For relationships use -[:TYPE]->
 - NO LIMIT clause unless explicitly requested
+- ONLY use node types and relationship types that exist in the database`;
+
+        if (schema && schema.nodeTypes && schema.relationshipTypes) {
+            systemPrompt += `
+
+AVAILABLE NODE TYPES: ${schema.nodeTypes.join(', ')}
+AVAILABLE RELATIONSHIP TYPES: ${schema.relationshipTypes.join(', ')}
+
+IMPORTANT: You MUST only use the node types and relationship types listed above. Do NOT invent new types.`;
+        }
+
+        systemPrompt += `
 
 Examples:
 "show all people" → MATCH (p:Person) RETURN p
