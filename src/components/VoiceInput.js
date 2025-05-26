@@ -95,12 +95,10 @@ export class VoiceInput {
 			};
 			
 			this.mediaRecorder.onstop = () => {
-				remoteLogger.info('🛑 MediaRecorder.onstop triggered', { totalChunks: this.audioChunks.length });
 				logger.info(`Recording stopped. Total chunks: ${this.audioChunks.length}`);
 				
 				// Add a small delay to ensure all chunks are collected
 				setTimeout(() => {
-					remoteLogger.info('⏰ Starting processRecording after delay...');
 					this.processRecording();
 				}, 100);
 			};
@@ -128,58 +126,35 @@ export class VoiceInput {
 	}
 	
 	stopRecording() {
-		remoteLogger.info('🛑 stopRecording() called', { isRecording: this.isRecording });
-		
-		if (!this.isRecording) {
-			remoteLogger.warn('❌ Not recording, early return');
-			return;
-		}
+		if (!this.isRecording) return;
 		
 		this.isRecording = false;
-		remoteLogger.info('✅ Set isRecording to false');
 		
 		if (this.recordingTimeout) {
 			clearTimeout(this.recordingTimeout);
 			this.recordingTimeout = null;
-			remoteLogger.info('✅ Cleared recording timeout');
 		}
 		
 		if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-			remoteLogger.info('🛑 Stopping MediaRecorder', { state: this.mediaRecorder.state });
 			this.mediaRecorder.stop();
 			
 			// Stop all tracks
 			const tracks = this.mediaRecorder.stream.getTracks();
-			remoteLogger.info(`🔇 Stopping ${tracks.length} audio tracks`);
 			tracks.forEach(track => track.stop());
 		}
 		
 		this.setStatus('Processing...', 0xffff00);
-		remoteLogger.info('✅ Set status to Processing...');
 		logger.info('Voice recording stopped');
 	}
 	
 	async processRecording() {
-		remoteLogger.info('🎤 === FRONTEND: Starting processRecording ===');
 		logger.info('Processing recording...');
-		
-		// Debug: Log audio chunks info
-		const chunkSizes = this.audioChunks.map(chunk => chunk.size);
-		remoteLogger.info('Audio chunks collected', { 
-			count: this.audioChunks.length, 
-			sizes: chunkSizes 
-		});
 		
 		// Create blob from chunks
 		const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-		remoteLogger.info('Created audio blob', {
-			size: audioBlob.size,
-			type: audioBlob.type
-		});
 		logger.info(`Created audio blob: ${audioBlob.size} bytes`);
 		
 		if (audioBlob.size === 0) {
-			remoteLogger.error('❌ Audio blob is empty!');
 			logger.error('Audio blob is empty!');
 			this.setStatus('No audio recorded', 0xff0000);
 			return;
@@ -188,40 +163,17 @@ export class VoiceInput {
 		// Send to backend
 		const formData = new FormData();
 		formData.append('audio', audioBlob, 'recording.webm');
-		remoteLogger.info('✅ FormData created with audio blob');
 		
 		try {
-			remoteLogger.info('🚀 Attempting to send audio to backend...');
 			logger.info('Sending audio to backend...');
 			
-			// Use the same host as the page is loaded from
-			const apiUrl = window.location.protocol + '//' + window.location.hostname + ':3000/api/voice/transcribe';
-			remoteLogger.info('🌐 API URL constructed', {
-				url: apiUrl,
-				location: {
-					protocol: window.location.protocol,
-					hostname: window.location.hostname,
-					port: window.location.port,
-					href: window.location.href
-				}
-			});
-			logger.info('API URL:', apiUrl);
-			
-			remoteLogger.info('📡 Making fetch request...');
-			const response = await fetch(apiUrl, {
+			const response = await fetch('/api/voice/transcribe', {
 				method: 'POST',
 				body: formData
 			});
 			
-			remoteLogger.info('✅ Fetch response received', {
-				status: response.status,
-				statusText: response.statusText,
-				ok: response.ok
-			});
 			logger.info(`Response status: ${response.status}`);
-			
 			const result = await response.json();
-			remoteLogger.info('📄 Response JSON', result);
 			logger.info('Response:', result);
 			
 			if (result.success) {
@@ -239,23 +191,68 @@ export class VoiceInput {
 			}
 			
 		} catch (error) {
-			remoteLogger.error('❌ Failed to send audio', { 
-				message: error.message, 
-				stack: error.stack 
-			});
 			logger.error('Failed to send audio:', error);
 			this.setStatus('Network error', 0xff0000);
 		}
 		
-		// Hide indicator after a longer delay for better feedback
+		// Hide indicator after delay
 		setTimeout(() => {
-			this.sphereMesh.visible = false;
-		}, 5000); // Increased from 2 seconds to 5 seconds
+			this.hide();
+		}, 3000);
 	}
 	
 	displayTranscript(transcript) {
-		// Transcript display removed - just log it
 		logger.info('Voice transcript:', transcript);
+		
+		// Create floating transcript text in front of user
+		this.showTranscriptText(transcript);
+	}
+	
+	showTranscriptText(transcript) {
+		// Remove any existing transcript
+		if (this.transcriptDisplay) {
+			if (window.scene && this.transcriptDisplay.parent) {
+				window.scene.remove(this.transcriptDisplay);
+			}
+		}
+		
+		// Create transcript display
+		const transcriptBlock = new ThreeMeshUI.Block({
+			width: 1.0,
+			height: 0.3,
+			padding: 0.05,
+			fontSize: 0.05,
+			fontFamily: UI_CONFIG.fontUrl,
+			fontColor: new THREE.Color(1, 1, 1),
+			backgroundColor: new THREE.Color(0, 0, 0),
+			backgroundOpacity: 0.8,
+			borderRadius: 0.02
+		});
+		
+		transcriptBlock.add(
+			new ThreeMeshUI.Text({
+				content: `"${transcript}"`,
+				fontSize: 0.05
+			})
+		);
+		
+		// Position in front of user (world space)
+		transcriptBlock.position.set(0, 1.6, -1.5); // Eye level, 1.5m in front
+		transcriptBlock.rotation.y = 0; // Face user
+		
+		this.transcriptDisplay = transcriptBlock;
+		
+		// Add to scene (not container, so it stays in place)
+		if (window.scene) {
+			window.scene.add(transcriptBlock);
+			
+			// Auto-hide after 8 seconds
+			setTimeout(() => {
+				if (window.scene && transcriptBlock.parent) {
+					window.scene.remove(transcriptBlock);
+				}
+			}, 8000);
+		}
 	}
 	
 	setStatus(text, color) {

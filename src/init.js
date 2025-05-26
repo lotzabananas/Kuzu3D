@@ -7,8 +7,8 @@
 
 import * as THREE from 'three';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
-import { HandTracking } from './hand-tracking.js';
 // import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; // Disabled for passthrough
+import { HandTracking } from './hand-tracking.js';
 import { setupQuestPassthrough } from './simple-passthrough.js';
 import { XRButton } from './XRButton.js';
 

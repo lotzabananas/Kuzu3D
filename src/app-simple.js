@@ -35,6 +35,9 @@ class KuzuVRApp {
 	async setupScene({ scene, camera, renderer, handTracking }) {
 		logger.info('Setting up scene');
 		
+		// Make scene globally available for VoiceInput
+		window.scene = scene;
+		
 		// Initialize managers
 		this.sceneManager = new SceneManager(scene, renderer);
 		this.nodeManager = new NodeManager(scene);
