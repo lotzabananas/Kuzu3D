@@ -135,20 +135,16 @@ class KuzuVRApp {
 	
 	setupUI() {
 		const loadButton = document.getElementById('load-db');
-		const dbSelect = document.getElementById('db-select');
 		const dbPath = document.getElementById('db-path');
 		const statusDiv = document.getElementById('status');
 		const uiContainer = document.getElementById('ui-container');
 		
 		// Database loading
 		loadButton.addEventListener('click', async () => {
-			let databasePath = dbSelect.value;
-			if (databasePath === 'custom') {
-				databasePath = dbPath.value.trim();
-				if (!databasePath) {
-					statusDiv.textContent = 'Please enter a database path';
-					return;
-				}
+			const databasePath = dbPath.value.trim();
+			if (!databasePath) {
+				statusDiv.textContent = 'Please enter a database path';
+				return;
 			}
 			await this.loadDatabase(databasePath, statusDiv, uiContainer);
 		});

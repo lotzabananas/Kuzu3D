@@ -232,23 +232,10 @@
 			
 			<div class="main-panel">
 				<div class="input-group">
-					<label for="db-select">Select Database</label>
+					<label for="db-path">Kùzu Database Path</label>
 					<div class="input-wrapper">
-						<select id="db-select" style="flex: 1; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #fff; font-size: 1rem;">
-							<option value="demo">Demo (20 nodes)</option>
-							<option value="social-network">Social Network (100+ nodes)</option>
-							<option value="knowledge-graph">Computer Science Knowledge Graph (100+ nodes)</option>
-							<option value="movie-database">Movie Database (100+ nodes)</option>
-							<option value="custom">Custom Kùzu Database...</option>
-						</select>
-						<button id="load-db">Load Database</button>
-					</div>
-				</div>
-				
-				<div class="input-group" style="margin-top: 1rem; display: none;" id="custom-db-group">
-					<label for="db-path">Custom Database Path</label>
-					<div class="input-wrapper">
-						<input type="text" id="db-path" placeholder="/path/to/your/kuzu/database">
+						<input type="text" id="db-path" placeholder="/path/to/your/kuzu/database" value="/Users/timmac/Desktop/Kuzu3D/test-kuzu-db">
+						<button id="load-db">Connect</button>
 					</div>
 					<div class="info-text" style="margin-top: 0.5rem;">
 						Enter the full path to your Kùzu database directory
@@ -300,22 +287,7 @@
 				const vrButton = document.getElementById('custom-vr-button');
 				const arButton = document.getElementById('custom-ar-button');
 				
-				// Handle database selection
-				const dbSelect = document.getElementById('db-select');
-				const customDbGroup = document.getElementById('custom-db-group');
-				
-				dbSelect.addEventListener('change', () => {
-					if (dbSelect.value === 'custom') {
-						customDbGroup.style.display = 'block';
-						// Auto-fill with test database path
-						const dbPathInput = document.getElementById('db-path');
-						if (!dbPathInput.value) {
-							dbPathInput.value = '/Users/timmac/Desktop/Kuzu3D/test-kuzu-db';
-						}
-					} else {
-						customDbGroup.style.display = 'none';
-					}
-				});
+				// Database path is now always visible - no dropdown logic needed
 				
 				// These will be replaced by actual XR buttons after they're created
 				let realVRButton = null;

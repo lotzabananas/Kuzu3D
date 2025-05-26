@@ -144,12 +144,11 @@ npm run server
 - Ensure HTTPS is enabled (required for WebXR)
 - Hand tracking must be enabled in Quest settings
 
-## Sample Databases
-Three comprehensive sample databases are included:
-1. **Social Network** (100+ nodes): People, companies, interests, and their relationships
-2. **Knowledge Graph** (100+ nodes): Computer science concepts, languages, and technologies
-3. **Movie Database** (100+ nodes): Films, actors, directors, and awards
-4. **Demo** (20 nodes): Simple demo for quick testing
+## Database Requirements
+The application now requires a real Kùzu database:
+- Must provide a valid path to an existing Kùzu database directory
+- No mock or sample databases - real Kùzu integration only
+- Test database available at: `/Users/timmac/Desktop/Kuzu3D/test-kuzu-db`
 
 ## Current Challenges
 1. Node movement needs to feel more natural and responsive
@@ -235,14 +234,10 @@ Debug mode hides development features like gesture indicators and thumb menu dir
 - Thumb menu direction indicator line
 - Any other development/testing UI elements
 
-## Database Options
-1. **Demo**: Small 20-node graph for quick testing
-2. **Social Network**: 100+ people, companies, and interests
-3. **Knowledge Graph**: 100+ CS concepts and technologies  
-4. **Movie Database**: 100+ films, actors, and awards
-5. **Custom**: Load your own Kùzu database from disk
-   - Auto-fills with test database path: `/Users/timmac/Desktop/Kuzu3D/test-kuzu-db`
-   - Falls back to mock data if Kùzu connection fails
+## Database Connection
+- **Path Required**: Enter full path to your Kùzu database directory
+- **Default**: `/Users/timmac/Desktop/Kuzu3D/test-kuzu-db` (auto-filled)
+- **No Fallback**: Application requires real Kùzu database - no mock data
 
 ## Test Database
 A test Kùzu database is created with `create-test-db.js`:

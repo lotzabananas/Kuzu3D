@@ -3,7 +3,6 @@ import cors from 'cors';
 import kuzu from 'kuzu';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { MockLoader } from './mock-loader.js';
 import CypherQueryService from './services/CypherQueryService.js';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
@@ -46,9 +45,7 @@ const upload = multer({
 
 let db = null;
 let conn = null;
-let mockLoader = new MockLoader();
 let cypherService = null;
-let useMock = false;
 
 // Endpoint to connect to database
 app.post('/api/connect', async (req, res) => {
@@ -56,13 +53,12 @@ app.post('/api/connect', async (req, res) => {
 	
 	console.log('Connect request received for:', dbPath);
 	
-	// Check if it's one of our sample databases or mock
-	const sampleDatabases = ['mock', 'demo', 'social-network', 'knowledge-graph', 'movie-database'];
-	if (!dbPath || sampleDatabases.includes(dbPath)) {
-		console.log('Using mock data for:', dbPath);
-		useMock = true;
-		const result = await mockLoader.connect(dbPath);
-		return res.json(result);
+	// Require real database path
+	if (!dbPath) {
+		return res.json({ 
+			success: false, 
+			message: 'Database path required - please provide a valid Kùzu database path' 
+		});
 	}
 	
 	try {
@@ -87,24 +83,17 @@ app.post('/api/connect', async (req, res) => {
 		console.log('Successfully connected to Kùzu database');
 		res.json({ success: true, message: 'Connected to Kùzu database' });
 	} catch (error) {
-		// Fall back to mock data
 		console.error('Kùzu connection failed:', error);
 		console.log('Error details:', error.message, error.stack);
-		useMock = true;
-		const result = await mockLoader.connect(dbPath);
-		res.json({ ...result, message: result.message + ' (Kùzu unavailable)' });
+		res.json({ 
+			success: false, 
+			message: `Failed to connect to Kùzu database: ${error.message}` 
+		});
 	}
 });
 
 // Endpoint to get nodes
 app.get('/api/nodes', async (req, res) => {
-	if (useMock) {
-		const tableName = req.query.table;
-		const limit = parseInt(req.query.limit) || 500;
-		const result = await mockLoader.getNodes(tableName, limit);
-		return res.json(result);
-	}
-	
 	if (!conn) {
 		return res.json({ success: false, message: 'Not connected to database' });
 	}
@@ -155,11 +144,6 @@ app.get('/api/nodes', async (req, res) => {
 
 // Endpoint to get edges
 app.get('/api/edges', async (req, res) => {
-	if (useMock) {
-		const result = await mockLoader.getEdges();
-		return res.json(result);
-	}
-	
 	if (!conn) {
 		return res.json({ success: false, message: 'Not connected to database' });
 	}
