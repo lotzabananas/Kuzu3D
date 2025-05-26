@@ -139,7 +139,7 @@ export class GestureVisualizer {
 			pinch: 'PINCH',
 			fist: 'FIST',
 			point: 'POINT',
-			peace: 'PEACE',
+			// peace: 'PEACE',  // Removed
 			thumbsup: 'THUMBS UP',
 			thumbpoint: 'THUMB MENU',
 			open: 'OPEN',

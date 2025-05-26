@@ -62,6 +62,8 @@ Kùzu Explore 3D VR is a VR/AR application for visualizing and exploring graph d
    - Improved home screen with database selection
 
 ## Features to Implement
+
+### Near-term Features
 1. **Cypher Query Integration** ✅ Backend Complete
    - ✅ Backend API with full Cypher support
    - ✅ Query execution, validation, and history endpoints
@@ -71,16 +73,51 @@ Kùzu Explore 3D VR is a VR/AR application for visualizing and exploring graph d
    - 🔲 Visual query result integration
    - 🔲 Query history browser in VR
 
-2. **Performance Optimization**
+2. **Voice Integration**
+   - Voice-to-text API integration (priority for natural VR interaction)
+   - Voice commands for queries and navigation
+   - Real-time transcription display
+
+3. **Performance Optimization**
    - Level-of-detail for large graphs
    - Spatial indexing for efficient interaction
    - Progressive loading for huge datasets
 
-3. **Advanced Visualization**
+4. **Advanced Visualization**
    - Force-directed graph layout
    - Clustering and grouping
    - Heat maps and analytics
    - Time-based animations
+
+### Long-term Features
+1. **Advanced Voice Visualization (Track 2)**
+   - Voice-controlled node layouts and positioning
+   - Natural language visualization commands
+   - "Arrange by hierarchy", "Group by department", etc.
+   - Custom visualization DSL
+
+2. **Authentication & User Management**
+   - OAuth integration (Google, GitHub)
+   - Optional custom email authentication
+   - User profiles and preferences
+   - Session management
+
+3. **Monetization**
+   - Stripe integration for payments
+   - Subscription tiers
+   - Usage-based pricing
+   - Premium features
+
+4. **AI Integration**
+   - API integration with major AI labs (OpenAI, Anthropic, etc.)
+   - Natural language to Cypher query conversion
+   - AI-assisted graph analysis
+   - Intelligent layout suggestions
+
+5. **Developer Tools**
+   - MCP server consideration for development acceleration
+   - API for third-party integrations
+   - Plugin system for custom visualizations
 
 ## Development Commands
 ```bash
@@ -148,9 +185,8 @@ Three comprehensive sample databases are included:
 - **Right Pinch**: Grab individual nodes / Confirm thumb menu selection
 - **Double Pinch**: Scale and translate entire graph
 - **Point (Index Extended)**: Ray-cast selection
-- **Peace Sign**: Toggle AR/VR modes
 - **Left Thumbs Up**: Activate thumb menu
-- **Right Thumbs Up**: Reset graph position
+- **Thumb Menu Option 2**: Activate/stop voice recording ✅
 - **Fist**: Reserved for future use
 
 ## Thumb Menu Design Intent

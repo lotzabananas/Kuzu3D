@@ -160,6 +160,17 @@ export class HandTracking {
 	}
 	
 	update(scene, onHover, onSelect) {
+		// Debug log to check if update is being called
+		if (!this.lastUpdateLog || Date.now() - this.lastUpdateLog > 2000) {
+			console.log('[HandTracking.update] Called with hands:', {
+				left: !!this.hands.left,
+				right: !!this.hands.right,
+				leftJoints: this.hands.left && this.hands.left.joints ? Object.keys(this.hands.left.joints).length : 0,
+				rightJoints: this.hands.right && this.hands.right.joints ? Object.keys(this.hands.right.joints).length : 0
+			});
+			this.lastUpdateLog = Date.now();
+		}
+		
 		['left', 'right'].forEach(handedness => {
 			const hand = this.hands[handedness];
 			const pointerLine = this.pointerLines[handedness];
@@ -175,6 +186,14 @@ export class HandTracking {
 			if (gestureResult) {
 				// Update visualizer
 				this.gestureVisualizer.updateGesture(handedness, gestureResult.current, hand);
+				
+				// Debug log gesture detection (every 2 seconds)
+				if (!this.lastGestureDebugLog || Date.now() - this.lastGestureDebugLog > 2000) {
+					if (gestureResult.current !== 'idle') {
+						console.log(`[HandTracking] ${handedness} gesture detected:`, gestureResult.current);
+					}
+					this.lastGestureDebugLog = Date.now();
+				}
 				
 				// Trigger callbacks for gesture changes
 				if (gestureResult.changed) {

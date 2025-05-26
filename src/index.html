@@ -196,6 +196,31 @@
 			#XRButton {
 				display: none !important;
 			}
+			
+			/* Microphone permission prompt */
+			.mic-permission-prompt {
+				position: fixed;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				background: rgba(0, 0, 0, 0.9);
+				border: 2px solid #667eea;
+				border-radius: 12px;
+				padding: 2rem;
+				text-align: center;
+				z-index: 1000;
+				display: none;
+			}
+			
+			.mic-permission-prompt h3 {
+				margin: 0 0 1rem 0;
+				color: #667eea;
+			}
+			
+			.mic-permission-prompt p {
+				margin-bottom: 1.5rem;
+				color: #ccc;
+			}
 		</style>
 	</head>
 	<body>
@@ -248,7 +273,28 @@
 			</div>
 		</div>
 		
+		<!-- Microphone permission prompt -->
+		<div class="mic-permission-prompt" id="mic-prompt">
+			<h3>🎤 Microphone Permission</h3>
+			<p>Voice commands require microphone access.<br>Please allow when prompted.</p>
+			<button onclick="this.parentElement.style.display='none'">OK</button>
+		</div>
+		
 		<script>
+			// Request microphone permission early to avoid VR interruption
+			async function requestMicrophonePermission() {
+				try {
+					const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+					// Stop the stream immediately - we just wanted permission
+					stream.getTracks().forEach(track => track.stop());
+					console.log('Microphone permission granted');
+					return true;
+				} catch (error) {
+					console.warn('Microphone permission denied:', error);
+					return false;
+				}
+			}
+			
 			// Add click handlers for custom XR buttons
 			document.addEventListener('DOMContentLoaded', () => {
 				const vrButton = document.getElementById('custom-vr-button');
@@ -293,13 +339,41 @@
 					}
 				}, 100);
 				
-				vrButton.addEventListener('click', () => {
+				vrButton.addEventListener('click', async () => {
+					// Show permission prompt
+					const micPrompt = document.getElementById('mic-prompt');
+					micPrompt.style.display = 'block';
+					
+					// Request microphone permission before entering VR
+					const hasPermission = await requestMicrophonePermission();
+					micPrompt.style.display = 'none';
+					
+					if (!hasPermission) {
+						const statusDiv = document.getElementById('status');
+						statusDiv.textContent = 'Microphone permission denied. Voice commands will not work.';
+						statusDiv.style.color = '#ff6b6b';
+					}
+					
 					if (realVRButton) {
 						realVRButton.click();
 					}
 				});
 				
-				arButton.addEventListener('click', () => {
+				arButton.addEventListener('click', async () => {
+					// Show permission prompt
+					const micPrompt = document.getElementById('mic-prompt');
+					micPrompt.style.display = 'block';
+					
+					// Request microphone permission before entering AR
+					const hasPermission = await requestMicrophonePermission();
+					micPrompt.style.display = 'none';
+					
+					if (!hasPermission) {
+						const statusDiv = document.getElementById('status');
+						statusDiv.textContent = 'Microphone permission denied. Voice commands will not work.';
+						statusDiv.style.color = '#ff6b6b';
+					}
+					
 					if (realARButton) {
 						realARButton.click();
 					}

@@ -47,15 +47,17 @@ export class UIManagerBasic {
 		const rightHand = this.handTracking.hands.right;
 		// const camera = this.renderer.xr.getCamera(); // Reserved for future use
 		
-		// Debug log hand tracking once
-		if (!this.debugLogged && (leftHand || rightHand)) {
-			logger.info('Hand tracking detected:', {
+		// Debug log hand tracking continuously (every second)
+		if (!this.lastHandLog || Date.now() - this.lastHandLog > 1000) {
+			logger.info('Hand tracking status:', {
 				leftHand: !!leftHand,
 				rightHand: !!rightHand,
 				leftJoints: leftHand ? Object.keys(leftHand.joints || {}).length : 0,
-				rightJoints: rightHand ? Object.keys(rightHand.joints || {}).length : 0
+				rightJoints: rightHand ? Object.keys(rightHand.joints || {}).length : 0,
+				handTracking: !!this.handTracking,
+				handTrackingActive: this.handTracking ? this.handTracking.active : false
 			});
-			this.debugLogged = true;
+			this.lastHandLog = Date.now();
 		}
 		
 		// Update wrist UI (temporarily disabled)
@@ -68,13 +70,37 @@ export class UIManagerBasic {
 		const leftGesture = this.handTracking.getCurrentGesture('left');
 		const rightGesture = this.handTracking.getCurrentGesture('right');
 		
+		// Debug log gestures more comprehensively
+		if (!this.lastGestureLog || Date.now() - this.lastGestureLog > 1000) {
+			logger.info('Gesture Debug:', { 
+				left: leftGesture, 
+				right: rightGesture,
+				thumbMenuActive: this.thumbMenuActive,
+				gestureDetector: !!this.handTracking.gestureDetector,
+				leftHandConnected: leftHand ? leftHand.isConnected : false,
+				rightHandConnected: rightHand ? rightHand.isConnected : false
+			});
+			this.lastGestureLog = Date.now();
+		}
+		
 		// Activate/deactivate thumb menu based on left thumbs up gesture
 		if (leftGesture === 'thumbsup' && !this.thumbMenuActive) {
+			logger.info('🎉 THUMBS UP DETECTED! Activating thumb menu!');
+			console.log('🎉 THUMBS UP DETECTED! Left hand joints:', leftHand ? Object.keys(leftHand.joints || {}) : 'no hand');
 			this.thumbMenu.activate(leftHand);
 			this.thumbMenuActive = true;
 		} else if (leftGesture !== 'thumbsup' && this.thumbMenuActive) {
+			logger.info('Deactivating thumb menu');
 			this.thumbMenu.deactivate();
 			this.thumbMenuActive = false;
+		}
+		
+		// Extra debug: log if we detect any non-idle gesture
+		if ((leftGesture && leftGesture !== 'idle') || (rightGesture && rightGesture !== 'idle')) {
+			if (!this.lastNonIdleLog || Date.now() - this.lastNonIdleLog > 500) {
+				console.log('🔍 Non-idle gestures detected:', { left: leftGesture, right: rightGesture });
+				this.lastNonIdleLog = Date.now();
+			}
 		}
 		
 		// Update thumb menu if active

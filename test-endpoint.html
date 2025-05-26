@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice API Test</title>
+</head>
+<body>
+    <h1>Voice API Test Page</h1>
+    
+    <button id="testDebug">Test Debug Endpoint</button>
+    <button id="testAPI">Test API Connectivity</button>
+    <button id="testRecord">Test Audio Recording</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message) {
+            console.log(message);
+            results.innerHTML += '<p>' + message + '</p>';
+        }
+        
+        // Test debug endpoint
+        document.getElementById('testDebug').onclick = async () => {
+            try {
+                log('Testing debug endpoint...');
+                const response = await fetch('http://localhost:3000/api/voice/debug');
+                const data = await response.json();
+                log('Debug response: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('Debug test failed: ' + error.message);
+            }
+        };
+        
+        // Test API connectivity
+        document.getElementById('testAPI').onclick = async () => {
+            try {
+                log('Testing API connectivity...');
+                const response = await fetch('http://localhost:3000/api/voice/test');
+                const data = await response.json();
+                log('API test response: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('API test failed: ' + error.message);
+            }
+        };
+        
+        // Test audio recording and upload
+        document.getElementById('testRecord').onclick = async () => {
+            try {
+                log('Starting audio recording test...');
+                
+                // Get microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                log('✅ Microphone access granted');
+                
+                // Create media recorder
+                const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                const audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        log(`Audio chunk received: ${event.data.size} bytes`);
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    log('Recording stopped, processing...');
+                    
+                    // Create blob
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    log(`Audio blob created: ${audioBlob.size} bytes`);
+                    
+                    // Send to server
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'test-recording.webm');
+                    
+                    try {
+                        log('Sending to server...');
+                        const response = await fetch('http://localhost:3000/api/voice/transcribe', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        log(`Response status: ${response.status}`);
+                        const result = await response.json();
+                        log('Server response: ' + JSON.stringify(result, null, 2));
+                        
+                    } catch (uploadError) {
+                        log('Upload failed: ' + uploadError.message);
+                    }
+                    
+                    // Clean up
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                // Start recording
+                mediaRecorder.start(100);
+                log('Recording started for 3 seconds...');
+                
+                // Stop after 3 seconds
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 3000);
+                
+            } catch (error) {
+                log('Recording test failed: ' + error.message);
+            }
+        };
+    </script>
+</body>
+</html>

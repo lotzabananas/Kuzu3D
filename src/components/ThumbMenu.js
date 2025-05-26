@@ -48,7 +48,7 @@ export class ThumbMenu {
 		const anglePerOption = this.config.angleRange / this.config.optionCount;
 		
 		// Option labels
-		const optionLabels = ['Legend', 'View', 'Filter', 'Settings'];
+		const optionLabels = ['Legend', 'Voice', 'Filter', 'Settings'];
 		// const optionIcons = ['📊', '👁️', '🔍', '⚙️']; // Reserved for future icon implementation
 		
 		for (let i = 0; i < this.config.optionCount; i++) {

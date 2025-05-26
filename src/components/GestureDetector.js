@@ -16,8 +16,16 @@ export class GestureDetector {
 			right: null
 		};
 		
+		// Double-tap tracking
+		this.lastTapTime = {
+			left: 0,
+			right: 0
+		};
+		this.DOUBLE_TAP_THRESHOLD = 500; // 500ms window for double tap
+		
 		// Gesture thresholds
 		this.PINCH_THRESHOLD = 0.03; // 3cm
+		this.TAP_THRESHOLD = 0.02; // 2cm for tap detection
 		this.FIST_THRESHOLD = 0.05; // 5cm from fingertip to palm
 		this.FINGER_CURL_THRESHOLD = 0.7; // Ratio for considering finger curled
 		this.FINGER_EXTEND_THRESHOLD = 0.85; // Ratio for considering finger extended
@@ -46,8 +54,8 @@ export class GestureDetector {
 		if (this.isPinching(joints)) return 'pinch';
 		if (this.isFist(joints)) return 'fist';
 		if (this.isPointing(joints)) return 'point';
-		if (this.isPeaceSign(joints)) return 'peace';
-		if (this.isThumbsUp(joints)) return 'thumbsup';
+		// if (this.isPeaceSign(joints)) return 'peace';  // Removed: was used for AR/VR toggle
+		if (this.isThumbsUp(joints)) return 'thumbsup';  // Re-enabled for thumb menu
 		if (this.isThumbPointing(joints)) return 'thumbpoint';
 		if (this.isOpenPalm(joints)) return 'open';
 		
@@ -146,16 +154,26 @@ export class GestureDetector {
 		// Thumb should be extended (far from metacarpal)
 		const thumbExtended = thumbTipPos.distanceTo(thumbMetacarpalPos) > 0.04;
 		
-		// Thumb should be pointing upward (higher than wrist)
-		const thumbUp = thumbTipPos.y > wristPos.y + 0.05;
+		// Thumb should be pointing upward (higher than wrist) - reduced threshold
+		const thumbUp = thumbTipPos.y > wristPos.y + 0.02; // Was 0.05, now 0.02
 		
-		// Other fingers should be curled
-		const fingersCurled = this.isFingerCurled(joints, 'index') &&
-		                     this.isFingerCurled(joints, 'middle') &&
-		                     this.isFingerCurled(joints, 'ring') &&
-		                     this.isFingerCurled(joints, 'pinky');
+		// Other fingers should be curled - made more lenient
+		const fingersCurled = 
+			(this.isFingerCurled(joints, 'index') && this.isFingerCurled(joints, 'middle')) ||
+			(this.isFingerCurled(joints, 'index') && this.isFingerCurled(joints, 'middle') && 
+			 this.isFingerCurled(joints, 'ring') && this.isFingerCurled(joints, 'pinky'));
 		
-		return thumbExtended && thumbUp && fingersCurled;
+		const result = thumbExtended && thumbUp && fingersCurled;
+		
+		// Debug logging (only log once per second to avoid spam)
+		if (!this.lastThumbsUpLog || Date.now() - this.lastThumbsUpLog > 1000) {
+			if (thumbExtended || thumbUp) {
+				console.log('ThumbsUp check:', { thumbExtended, thumbUp, fingersCurled, result });
+			}
+			this.lastThumbsUpLog = Date.now();
+		}
+		
+		return result;
 	}
 	
 	isThumbPointing(joints) {
@@ -246,7 +264,7 @@ export class GestureDetector {
 			pinch: { name: 'Pinch', emoji: '🤏', description: 'Thumb and index finger together' },
 			fist: { name: 'Fist', emoji: '✊', description: 'All fingers curled into palm' },
 			point: { name: 'Point', emoji: '👉', description: 'Index finger extended' },
-			peace: { name: 'Peace', emoji: '✌️', description: 'Index and middle fingers extended' },
+			// peace: { name: 'Peace', emoji: '✌️', description: 'Index and middle fingers extended' },
 			thumbsup: { name: 'Thumbs Up', emoji: '👍', description: 'Thumb extended upward' },
 			thumbpoint: { name: 'Thumb Point', emoji: '👈', description: 'Thumb extended, other fingers curled' },
 			open: { name: 'Open Palm', emoji: '🖐️', description: 'All fingers extended' },
@@ -254,5 +272,35 @@ export class GestureDetector {
 		};
 		
 		return gestureInfo[gesture] || gestureInfo.idle;
+	}
+	
+	// Detect tap gesture (quick pinch and release)
+	isTapping(joints) {
+		const thumbTip = joints['thumb-tip'];
+		const indexTip = joints['index-finger-tip'];
+		
+		if (!thumbTip || !indexTip) return false;
+		
+		// Get positions
+		const thumbPos = new THREE.Vector3();
+		const indexPos = new THREE.Vector3();
+		thumbTip.getWorldPosition(thumbPos);
+		indexTip.getWorldPosition(indexPos);
+		
+		// Check if fingers are close (like pinch but with smaller threshold)
+		const distance = thumbPos.distanceTo(indexPos);
+		return distance < this.TAP_THRESHOLD;
+	}
+	
+	// Check for double tap
+	checkDoubleTap(handedness) {
+		const currentTime = Date.now();
+		const timeSinceLastTap = currentTime - this.lastTapTime[handedness];
+		
+		// Update last tap time
+		this.lastTapTime[handedness] = currentTime;
+		
+		// Check if this tap is within the double-tap window
+		return timeSinceLastTap < this.DOUBLE_TAP_THRESHOLD;
 	}
 }

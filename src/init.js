@@ -7,10 +7,10 @@
 
 import * as THREE from 'three';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
-// import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; // Disabled for passthrough
-import { XRButton } from './XRButton.js';
 import { HandTracking } from './hand-tracking.js';
+// import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; // Disabled for passthrough
 import { setupQuestPassthrough } from './simple-passthrough.js';
+import { XRButton } from './XRButton.js';
 
 export async function init(setupScene = () => {}, onFrame = () => {}) {
 	const container = document.createElement('div');

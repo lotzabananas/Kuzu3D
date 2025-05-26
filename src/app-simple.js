@@ -8,9 +8,11 @@ import { NodeManager } from './managers/NodeManager.js';
 import { SceneManager } from './managers/SceneManager.js';
 import { UIManagerBasic } from './managers/UIManagerBasic.js';
 import { UI_CONFIG } from './constants/index.js';
+import { VoiceInput } from './components/VoiceInput.js';
 import { debugManager } from './utils/DebugManager.js';
 import { init } from './init.js';
 import { logger } from './utils/Logger.js';
+import { remoteLogger } from './utils/RemoteLogger.js';
 
 class KuzuVRApp {
 	constructor() {
@@ -20,8 +22,14 @@ class KuzuVRApp {
 		this.sceneManager = null;
 		this.uiManager = null;
 		this.handTracking = null;
+		this.voiceInput = null;
 		
 		logger.info('Initializing Kùzu VR App (Simple)');
+		
+		// Test remote logging immediately
+		setTimeout(() => {
+			remoteLogger.info('🧪 Remote logging test from VR app startup');
+		}, 2000);
 	}
 	
 	async setupScene({ scene, camera, renderer, handTracking }) {
@@ -35,6 +43,10 @@ class KuzuVRApp {
 		
 		// Initialize basic UI Manager
 		this.uiManager = new UIManagerBasic(scene, camera, renderer, handTracking);
+		
+		// Initialize Voice Input
+		this.voiceInput = new VoiceInput();
+		scene.add(this.voiceInput.container);
 		
 		// Add gesture visualizer to scene
 		this.handTracking.addVisualizerToScene(scene);
@@ -90,6 +102,23 @@ class KuzuVRApp {
 			this.uiManager.update(delta, this.nodeManager);
 		}
 		
+		// Update voice input
+		if (this.voiceInput) {
+			this.voiceInput.update(delta);
+			
+			// Always update position to follow LEFT hand (not right)
+			const leftHand = this.handTracking?.hands?.left;
+			if (leftHand && leftHand.joints && this.voiceInput.container.visible) {
+				// Update voice input position
+				const wristJoint = leftHand.joints['wrist'];
+				if (wristJoint) {
+					const wristPos = new THREE.Vector3();
+					wristJoint.getWorldPosition(wristPos);
+					this.voiceInput.updatePosition(wristPos);
+				}
+			}
+		}
+		
 		// Update debug panel
 		if (this.debugPanel && debugManager.isDebugMode()) {
 			this.debugPanel.update({
@@ -122,32 +151,55 @@ class KuzuVRApp {
 		});
 		
 		// Scene manager will handle passthrough based on XR mode
+		
+		// Add keyboard shortcuts for testing
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 't' || e.key === 'T') {
+				logger.info('Manual thumb menu toggle (T key pressed)');
+				if (this.uiManager && this.uiManager.thumbMenu && this.handTracking) {
+					const leftHand = this.handTracking.hands.left;
+					if (leftHand) {
+						if (this.uiManager.thumbMenuActive) {
+							logger.info('Deactivating thumb menu manually');
+							this.uiManager.thumbMenu.deactivate();
+							this.uiManager.thumbMenuActive = false;
+						} else {
+							logger.info('Activating thumb menu manually');
+							this.uiManager.thumbMenu.activate(leftHand);
+							this.uiManager.thumbMenuActive = true;
+						}
+					} else {
+						logger.warn('No left hand detected for thumb menu');
+					}
+				}
+			}
+			
+			// NEW: Direct voice testing shortcut
+			if (e.key === 'v' || e.key === 'V') {
+				console.log('🎤 DIRECT VOICE TEST (V key pressed)');
+				logger.info('Direct voice test triggered');
+				
+				if (this.voiceInput) {
+					if (this.voiceInput.isRecording) {
+						console.log('🛑 Stopping voice recording (direct test)');
+						this.voiceInput.stopRecording();
+					} else {
+						console.log('🎤 Starting voice recording (direct test)');
+						this.voiceInput.startRecording();
+					}
+				} else {
+					console.log('❌ VoiceInput not available for direct test');
+				}
+			}
+		});
 	}
 	
 	setupGestureControls() {
-		// Peace sign (✌️) - Toggle between AR and VR mode
-		this.handTracking.onGesture('peace', 'left', () => {
-			const isPassthrough = this.sceneManager.isPassthroughEnabled;
-			this.sceneManager.setPassthrough(!isPassthrough);
-			logger.info(`Toggled passthrough mode: ${!isPassthrough ? 'ON' : 'OFF'}`);
-		});
+		// Removed: Peace sign gesture for AR/VR toggle
+		// Removed: Right thumbs up for graph reset
 		
-		this.handTracking.onGesture('peace', 'right', () => {
-			const isPassthrough = this.sceneManager.isPassthroughEnabled;
-			this.sceneManager.setPassthrough(!isPassthrough);
-			logger.info(`Toggled passthrough mode: ${!isPassthrough ? 'ON' : 'OFF'}`);
-		});
-		
-		// Thumbs up (👍) - Now used for menu on left hand
-		// Right thumbs up can still reset graph
-		this.handTracking.onGesture('thumbsup', 'right', () => {
-			if (this.nodeManager && this.nodeManager.nodeGroup) {
-				this.nodeManager.nodeGroup.position.set(0, 0, 0);
-				this.nodeManager.nodeGroup.rotation.set(0, 0, 0);
-				this.nodeManager.nodeGroup.scale.set(1, 1, 1);
-				logger.info('Reset graph position with right thumbs up!');
-			}
-		});
+		// Removed: Double-tap detection for voice input
+		// Voice is now activated through thumb menu option 2
 		
 		// Fist (✊) - Grab entire graph (alternative to double pinch)
 		this.handTracking.onGesture('fist', 'left', () => {
@@ -158,39 +210,18 @@ class KuzuVRApp {
 			logger.info('Right fist detected - could be used for graph grab');
 		});
 		
-		// Double peace sign - Toggle debug mode
-		let doublePeaceTimeout = null;
-		this.handTracking.onGesture('peace', 'left', () => {
-			const rightGesture = this.handTracking.getCurrentGesture('right');
-			if (rightGesture === 'peace') {
-				// Both hands showing peace sign
-				if (!doublePeaceTimeout) {
-					doublePeaceTimeout = setTimeout(() => {
-						debugManager.toggleDebugMode();
-						logger.info('Debug mode toggled via double peace sign');
-						doublePeaceTimeout = null;
-					}, 500); // Half second delay to prevent accidental triggers
-				}
-			}
-		});
-		
-		this.handTracking.onGesture('peace', 'right', () => {
-			const leftGesture = this.handTracking.getCurrentGesture('left');
-			if (leftGesture === 'peace') {
-				// Both hands showing peace sign
-				if (!doublePeaceTimeout) {
-					doublePeaceTimeout = setTimeout(() => {
-						debugManager.toggleDebugMode();
-						logger.info('Debug mode toggled via double peace sign');
-						doublePeaceTimeout = null;
-					}, 500); // Half second delay to prevent accidental triggers
-				}
-			}
-		});
+		// Removed: Double peace sign for debug mode toggle
+		// Now debug mode is only toggled via keyboard (D) or button
 		
 		// Thumb menu setup
+		console.log('🔧 Setting up thumb menu...');
+		console.log('UIManager exists:', !!this.uiManager);
+		console.log('ThumbMenu exists:', !!(this.uiManager && this.uiManager.thumbMenu));
+		
 		if (this.uiManager && this.uiManager.thumbMenu) {
+			console.log('✅ Thumb menu found, setting up onSelect callback');
 			this.uiManager.thumbMenu.onSelect((option) => {
+				console.log('🎯 THUMB MENU SELECTION TRIGGERED:', option);
 				logger.info(`Thumb menu option ${option} selected!`);
 				
 				// Example actions for each option
@@ -200,10 +231,28 @@ class KuzuVRApp {
 						logger.info(`Legend ${legendVisible ? 'shown' : 'hidden'}`);
 						break;
 					}
-					case 2:
-						logger.info('Option 2: Change visualization mode');
-						// TODO: Implement viz mode change
+					case 2: {
+						// Voice input toggle
+						console.log('🎤 THUMB MENU OPTION 2 SELECTED!');
+						logger.info('🎤 THUMB MENU OPTION 2 SELECTED!');
+						
+						if (this.voiceInput) {
+							console.log('✅ VoiceInput exists, current recording state:', this.voiceInput.isRecording);
+							if (this.voiceInput.isRecording) {
+								console.log('🛑 Stopping voice recording...');
+								logger.info('Stopping voice recording');
+								this.voiceInput.stopRecording();
+							} else {
+								console.log('🎤 Starting voice recording...');
+								logger.info('Starting voice recording');
+								this.voiceInput.startRecording();
+							}
+						} else {
+							console.log('❌ VoiceInput is null/undefined!');
+							logger.error('VoiceInput is null/undefined!');
+						}
 						break;
+					}
 					case 3:
 						logger.info('Option 3: Filter nodes');
 						// TODO: Implement node filtering
@@ -215,6 +264,17 @@ class KuzuVRApp {
 				}
 			});
 		}
+		
+		// Listen for voice transcripts
+		window.addEventListener('voiceTranscript', (event) => {
+			const transcript = event.detail.transcript;
+			logger.info('Voice transcript received:', transcript);
+			
+			// For now, just log it
+			// TODO: Send to GPT for Cypher generation
+			// TODO: Execute Cypher query
+			// TODO: Update graph visualization
+		});
 		
 		// Log all gesture changes for debugging
 		['pinch', 'fist', 'point', 'peace', 'thumbsup', 'thumbpoint', 'open'].forEach(gesture => {
