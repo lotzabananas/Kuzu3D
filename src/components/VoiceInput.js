@@ -39,33 +39,50 @@ export class VoiceInput {
 		const sphere = new THREE.Mesh(geometry, material);
 		sphere.position.set(0, 0.05, -0.05); // In palm of hand
 		
-		// Add "Listening..." text
-		const listeningText = new ThreeMeshUI.Block({
-			width: 0.3,
-			height: 0.08,
-			padding: 0.02,
-			fontSize: 0.03,
-			fontFamily: UI_CONFIG.fontUrl,
-			fontColor: new THREE.Color(1, 1, 1),
-			backgroundColor: new THREE.Color(0, 0, 0),
-			backgroundOpacity: 0.7,
-			borderRadius: 0.02
-		});
-		
-		listeningText.add(
-			new ThreeMeshUI.Text({
-				content: 'Listening...',
-				fontSize: 0.03
-			})
-		);
-		
-		listeningText.position.set(0, 0.05, 0);
-		sphere.add(listeningText);
+		// Create text sprite inside sphere (like node labels)
+		this.createStatusText('Recording');
+		sphere.add(this.statusSprite);
 		
 		this.sphereMesh = sphere;
-		this.statusText = listeningText.children[0];
 		
 		return sphere;
+	}
+	
+	createStatusText(text) {
+		// Create canvas for text
+		const canvas = document.createElement('canvas');
+		const context = canvas.getContext('2d');
+		
+		canvas.width = 256;
+		canvas.height = 64;
+		
+		// Style the text
+		context.font = 'Bold 16px Arial';
+		context.fillStyle = 'white';
+		context.strokeStyle = 'black';
+		context.lineWidth = 2;
+		context.textAlign = 'center';
+		context.textBaseline = 'middle';
+		
+		// Clear and draw text
+		context.clearRect(0, 0, canvas.width, canvas.height);
+		context.strokeText(text, canvas.width / 2, canvas.height / 2);
+		context.fillText(text, canvas.width / 2, canvas.height / 2);
+		
+		// Create or update texture
+		if (!this.statusTexture) {
+			this.statusTexture = new THREE.CanvasTexture(canvas);
+			const material = new THREE.SpriteMaterial({ 
+				map: this.statusTexture,
+				transparent: true,
+				alphaTest: 0.01
+			});
+			this.statusSprite = new THREE.Sprite(material);
+			this.statusSprite.scale.set(0.2, 0.05, 1); // Small text inside sphere
+		} else {
+			this.statusTexture.image = canvas;
+			this.statusTexture.needsUpdate = true;
+		}
 	}
 	
 	// Transcript display method removed - no longer needed
@@ -109,7 +126,7 @@ export class VoiceInput {
 			
 			// Update visuals
 			this.show();
-			this.setStatus('Listening...', 0xff0000);
+			this.setStatus('Recording', 0xff0000);
 			
 			// Auto-stop after max time
 			this.recordingTimeout = setTimeout(() => {
@@ -216,49 +233,93 @@ export class VoiceInput {
 			}
 		}
 		
-		// Create transcript display
-		const transcriptBlock = new ThreeMeshUI.Block({
-			width: 1.0,
-			height: 0.3,
-			padding: 0.05,
-			fontSize: 0.05,
-			fontFamily: UI_CONFIG.fontUrl,
-			fontColor: new THREE.Color(1, 1, 1),
-			backgroundColor: new THREE.Color(0, 0, 0),
-			backgroundOpacity: 0.8,
-			borderRadius: 0.02
+		// Create simple text sprite like node labels
+		const canvas = document.createElement('canvas');
+		const context = canvas.getContext('2d');
+		
+		// Set canvas size
+		canvas.width = 1024;
+		canvas.height = 256;
+		
+		// Style the text (much smaller)
+		context.font = 'Bold 24px Arial';
+		context.fillStyle = 'white';
+		context.strokeStyle = 'black';
+		context.lineWidth = 2;
+		context.textAlign = 'center';
+		context.textBaseline = 'middle';
+		
+		// Add quotes and wrap text if needed
+		const displayText = `"${transcript}"`;
+		const maxWidth = canvas.width - 40;
+		
+		// Simple text wrapping
+		const words = displayText.split(' ');
+		let lines = [];
+		let currentLine = '';
+		
+		for (let word of words) {
+			const testLine = currentLine + (currentLine ? ' ' : '') + word;
+			const metrics = context.measureText(testLine);
+			
+			if (metrics.width > maxWidth && currentLine) {
+				lines.push(currentLine);
+				currentLine = word;
+			} else {
+				currentLine = testLine;
+			}
+		}
+		if (currentLine) lines.push(currentLine);
+		
+		// Draw the text lines (smaller line height)
+		const lineHeight = 30;
+		const startY = canvas.height / 2 - ((lines.length - 1) * lineHeight) / 2;
+		
+		lines.forEach((line, i) => {
+			const y = startY + i * lineHeight;
+			context.strokeText(line, canvas.width / 2, y);
+			context.fillText(line, canvas.width / 2, y);
 		});
 		
-		transcriptBlock.add(
-			new ThreeMeshUI.Text({
-				content: `"${transcript}"`,
-				fontSize: 0.05
-			})
-		);
+		// Create texture and sprite
+		const texture = new THREE.CanvasTexture(canvas);
+		texture.needsUpdate = true;
 		
-		// Position in front of user (world space)
-		transcriptBlock.position.set(0, 1.6, -1.5); // Eye level, 1.5m in front
-		transcriptBlock.rotation.y = 0; // Face user
+		const material = new THREE.SpriteMaterial({ 
+			map: texture,
+			transparent: true,
+			alphaTest: 0.01
+		});
 		
-		this.transcriptDisplay = transcriptBlock;
+		const sprite = new THREE.Sprite(material);
 		
-		// Add to scene (not container, so it stays in place)
+		// Scale the sprite smaller
+		const aspect = canvas.width / canvas.height;
+		sprite.scale.set(1.0 * aspect, 1.0, 1); // Smaller, readable size
+		
+		// Position in front of user
+		sprite.position.set(0, 1.6, -1.5); // Eye level, 1.5m in front
+		
+		this.transcriptDisplay = sprite;
+		
+		// Add to scene
 		if (window.scene) {
-			window.scene.add(transcriptBlock);
+			window.scene.add(sprite);
 			
 			// Auto-hide after 8 seconds
 			setTimeout(() => {
-				if (window.scene && transcriptBlock.parent) {
-					window.scene.remove(transcriptBlock);
+				if (window.scene && sprite.parent) {
+					window.scene.remove(sprite);
 				}
 			}, 8000);
 		}
 	}
 	
 	setStatus(text, color) {
-		if (this.statusText) {
-			this.statusText.content = text;
-		}
+		// Update text inside sphere
+		this.createStatusText(text);
+		
+		// Update sphere color
 		if (this.sphereMesh && this.sphereMesh.material) {
 			this.sphereMesh.material.color.setHex(color);
 		}
