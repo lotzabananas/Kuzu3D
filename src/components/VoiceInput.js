@@ -39,7 +39,7 @@ export class VoiceInput {
 		const sphere = new THREE.Mesh(geometry, material);
 		sphere.position.set(0, 0.05, -0.05); // In palm of hand
 		
-		// Create text sprite inside sphere (like node labels)
+		// Create text sprite exactly like nodes do
 		this.createStatusText('Recording');
 		sphere.add(this.statusSprite);
 		
@@ -49,36 +49,46 @@ export class VoiceInput {
 	}
 	
 	createStatusText(text) {
-		// Create canvas for text
+		// Create canvas for text (same as nodes)
 		const canvas = document.createElement('canvas');
 		const context = canvas.getContext('2d');
+		canvas.width = 512;
+		canvas.height = 128;
 		
-		canvas.width = 256;
-		canvas.height = 64;
-		
-		// Style the text
-		context.font = 'Bold 16px Arial';
+		// Configure text style (same as nodes)
+		context.font = 'bold 24px Arial';
 		context.fillStyle = 'white';
-		context.strokeStyle = 'black';
-		context.lineWidth = 2;
 		context.textAlign = 'center';
 		context.textBaseline = 'middle';
 		
-		// Clear and draw text
-		context.clearRect(0, 0, canvas.width, canvas.height);
-		context.strokeText(text, canvas.width / 2, canvas.height / 2);
+		// Add background for better readability (same as nodes)
+		const metrics = context.measureText(text);
+		const textWidth = metrics.width + 20;
+		const textHeight = 30;
+		
+		context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+		context.fillRect(
+			(canvas.width - textWidth) / 2,
+			(canvas.height - textHeight) / 2,
+			textWidth,
+			textHeight
+		);
+		
+		// Draw text (same as nodes)
+		context.fillStyle = 'white';
 		context.fillText(text, canvas.width / 2, canvas.height / 2);
 		
-		// Create or update texture
+		// Create or update texture (same as nodes)
 		if (!this.statusTexture) {
 			this.statusTexture = new THREE.CanvasTexture(canvas);
-			const material = new THREE.SpriteMaterial({ 
+			const spriteMaterial = new THREE.SpriteMaterial({ 
 				map: this.statusTexture,
-				transparent: true,
-				alphaTest: 0.01
+				depthTest: false,
+				depthWrite: false
 			});
-			this.statusSprite = new THREE.Sprite(material);
-			this.statusSprite.scale.set(0.2, 0.05, 1); // Small text inside sphere
+			this.statusSprite = new THREE.Sprite(spriteMaterial);
+			this.statusSprite.scale.set(0.5, 0.125, 1); // Smaller scale for hand
+			this.statusSprite.position.set(0, 0, 0);
 		} else {
 			this.statusTexture.image = canvas;
 			this.statusTexture.needsUpdate = true;
