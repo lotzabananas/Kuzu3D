@@ -142,6 +142,7 @@ app.get('/api/nodes', async (req, res) => {
 				return {
 					id: nodeId,
 					data: node,
+					type: node._label, // Extract the node type for color coding
 					label: node.name || node.id || node.title || `${node._label} ${node._id.offset}`
 				};
 			})
@@ -579,6 +580,11 @@ app.post('/api/cypher/fromText', async (req, res) => {
 				const relationshipTypes = tables.filter(t => t.type === 'REL').map(t => t.name);
 				
 				schema = { nodeTypes, relationshipTypes };
+				
+				console.log('🔍 Database Schema for NL conversion:');
+				console.log('Node Types:', nodeTypes);
+				console.log('Relationship Types:', relationshipTypes);
+				
 			} catch (schemaError) {
 				console.warn('Failed to get schema for NL conversion:', schemaError.message);
 			}

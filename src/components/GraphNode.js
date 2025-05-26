@@ -12,8 +12,8 @@ export class GraphNode extends THREE.Group {
 			VISUAL_CONFIG.node.segments
 		);
 		
-		// Get color based on node type
-		const nodeType = nodeData.data?.type || nodeData.type || 'default';
+		// Get color based on node type - check multiple possible locations
+		const nodeType = nodeData.type || nodeData.data?._label || nodeData.data?.type || 'default';
 		const nodeColor = VISUAL_CONFIG.node.typeColors[nodeType] || VISUAL_CONFIG.node.typeColors.default;
 		
 		const material = new THREE.MeshPhongMaterial({

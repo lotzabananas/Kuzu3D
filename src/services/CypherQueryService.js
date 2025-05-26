@@ -149,6 +149,9 @@ export default class CypherQueryService {
     // Convert nodes map to array and assign positions if needed
     const nodeArray = Array.from(nodes.values());
     
+    // Resolve edge source/target IDs to match node IDs
+    this.resolveEdgeIds(edges, nodes);
+    
     // Add layout hints based on query type
     if (this.isPathQuery(query)) {
       this.addPathLayout(nodeArray, edges);
@@ -169,8 +172,8 @@ export default class CypherQueryService {
   extractNodesAndEdges(obj, nodes, edges, path = '') {
     if (!obj || typeof obj !== 'object') return;
     
-    // Check if this is a node
-    if (obj._label && obj._id) {
+    // Check if this is a node (has _label and _id, but not _src/_dst which would make it a relationship)
+    if (obj._label && obj._id && !obj._src && !obj._dst) {
       const nodeId = this.formatNodeId(obj._label, obj._id);
       if (!nodes.has(nodeId)) {
         nodes.set(nodeId, {
@@ -183,15 +186,19 @@ export default class CypherQueryService {
     }
     
     // Check if this is a relationship
-    if (obj._src && obj._dst && !obj._label) {
-      // This is likely a relationship
+    if (obj._src && obj._dst) {
+      // This is a relationship - Kuzu relationships have _src, _dst AND _label
       const edgeId = `edge_${edges.length + 1}`;
+      
+      // Format source and target IDs - need to get the label from the actual nodes
+      // For now, we'll store the raw _src/_dst and resolve them later
       edges.push({
         id: edgeId,
         source: obj._src,
         target: obj._dst,
-        type: obj._type || 'RELATED',
-        properties: this.extractProperties(obj)
+        type: obj._label || obj._type || 'RELATED',
+        properties: this.extractProperties(obj),
+        needsResolution: true // Flag to indicate these need ID resolution
       });
     }
     
@@ -296,6 +303,50 @@ export default class CypherQueryService {
   formatNodeId(label, idObj) {
     const offset = idObj?.offset || idObj;
     return `${label}_${offset}`;
+  }
+  
+  resolveEdgeIds(edges, nodes) {
+    // Simple approach: extract label and offset from the _src/_dst objects
+    edges.forEach(edge => {
+      if (edge.needsResolution) {
+        // Convert source: {offset: 1, table: 2} to "Project_1" format
+        if (edge.source && typeof edge.source === 'object' && edge.source.offset !== undefined) {
+          const sourceLabel = this.getLabelFromTableId(edge.source.table);
+          edge.source = `${sourceLabel}_${edge.source.offset}`;
+        }
+        
+        // Convert target: {offset: 1, table: 3} to "Technology_1" format  
+        if (edge.target && typeof edge.target === 'object' && edge.target.offset !== undefined) {
+          const targetLabel = this.getLabelFromTableId(edge.target.table);
+          edge.target = `${targetLabel}_${edge.target.offset}`;
+        }
+        
+        // Remove the resolution flag
+        delete edge.needsResolution;
+      }
+    });
+  }
+  
+  getTableIdFromLabel(label) {
+    // This is a simple mapping - in a real system you'd query this
+    const tableMap = {
+      'Person': 0,
+      'Company': 1, 
+      'Project': 2,
+      'Technology': 3
+    };
+    return tableMap[label] || 0;
+  }
+  
+  getLabelFromTableId(tableId) {
+    // Reverse mapping from table ID to label
+    const labelMap = {
+      0: 'Person',
+      1: 'Company',
+      2: 'Project', 
+      3: 'Technology'
+    };
+    return labelMap[tableId] || 'Unknown';
   }
   
   extractProperties(obj) {
