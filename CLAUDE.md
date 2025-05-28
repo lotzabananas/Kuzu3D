@@ -73,6 +73,15 @@ Kùzu Explore 3D VR is a VR/AR application for visualizing and exploring graph d
    - 🔲 Visual query result integration
    - 🔲 Query history browser in VR
 
+2. **Node Creation & Editing** 🚧 In Progress
+   - ✅ Edit mode toggle on home screen with confirmation
+   - ✅ NodeCreationService with full CRUD operations
+   - ✅ PropertyPanel component for viewing node data
+   - 🔲 VR keyboard for text input
+   - 🔲 Voice commands for node creation
+   - 🔲 Property editing interface
+   - 🔲 Relationship creation UI
+
 2. **Voice Integration**
    - Voice-to-text API integration (priority for natural VR interaction)
    - Voice commands for queries and navigation
@@ -144,6 +153,13 @@ npm run server
 - Ensure HTTPS is enabled (required for WebXR)
 - Hand tracking must be enabled in Quest settings
 
+## Debugging on Quest
+Since browser console is not accessible on Quest headset:
+- Use remote logging via `/api/logs` endpoint
+- View logs with: `curl http://localhost:3000/api/logs | jq`
+- App sends debug info to server automatically
+- Check logs for initialization errors and XR button creation
+
 ## Database Requirements
 The application now requires a real Kùzu database:
 - Must provide a valid path to an existing Kùzu database directory
@@ -160,6 +176,9 @@ The application now requires a real Kùzu database:
 - Always test on actual Quest 3 hardware (WebXR simulators don't fully replicate hand tracking)
 - Passthrough mode is enabled by default for AR experience
 - The app uses a simplified architecture (app-simple.js) for the proof of concept
+- **Camera clipping behavior**:
+  - VR mode: 100 unit far plane (nodes disappear beyond this for performance)
+  - AR mode: 1000 unit far plane (10x larger to allow free exploration in physical space)
 
 ## Recent Work
 - Fixed node position reset issue during double-pinch manipulation
@@ -178,6 +197,17 @@ The application now requires a real Kùzu database:
   - REST API endpoints for execute, validate, templates, and history
   - Frontend DataService integration with all Cypher methods
   - Comprehensive test suite for API verification
+- **Added Voice Command System** ✅:
+  - Natural language to Cypher query conversion via OpenAI API
+  - Voice-activated recording (Thumb Menu Option 2)
+  - Automatic schema detection for accurate queries
+  - Real-time transcription display in VR
+- **Implemented Layout Command System** ✅:
+  - Voice commands for node arrangement ("group nodes", "spread apart", "organize graph")
+  - Gentle drift system with configurable physics (Button 3 toggle)
+  - Instant spread for immediate arrangement (Button 4)
+  - Dynamic edge colors by relationship type
+  - AI Layout Engine architecture ready for advanced layouts
 
 ## Current Gesture Controls
 - **Left Pinch**: Grab individual nodes
@@ -186,6 +216,8 @@ The application now requires a real Kùzu database:
 - **Point (Index Extended)**: Ray-cast selection
 - **Left Thumbs Up**: Activate thumb menu
 - **Thumb Menu Option 2**: Activate/stop voice recording ✅
+- **Thumb Menu Option 3**: Toggle gentle drift (node separation) ✅
+- **Thumb Menu Option 4**: Instant spread (immediate node arrangement) ✅
 - **Fist**: Reserved for future use
 
 ## Thumb Menu Design Intent
@@ -194,6 +226,49 @@ The application now requires a real Kùzu database:
 - Direct mapping: clockwise thumb = clockwise selection
 - Right pinch confirms selection
 - Menu locks in world space when activated for stability
+
+## Voice Command System
+The application supports natural language voice commands that fall into two categories:
+
+### Query Commands (Database Queries)
+These commands search and retrieve data from the Kùzu database:
+- **Keywords**: find, show, search, where, which, who, what
+- **Examples**:
+  - "Show me all people"
+  - "Find who works at TechCorp"
+  - "Show all relationships to Python"
+  - "Which projects use Java?"
+- **Processing**: Natural language → OpenAI API → Cypher query → Database results → 3D visualization
+
+### Layout Commands (3D Arrangement)
+These commands modify how nodes are displayed in 3D space:
+- **Keywords**: arrange, group, cluster, organize, layout, position, spread, place
+- **Examples**:
+  - "Group the nodes together" - Reduces spacing between nodes
+  - "Spread the nodes apart" - Increases spacing between nodes
+  - "Organize the graph" - Applies instant spread algorithm
+  - "Group employees around their companies" - Groups nodes by relationships
+  - "Cluster people by the companies they work for" - Semantic grouping
+  - "Arrange nodes in a circle" - Circular layout
+  - "Show hierarchy" - Tree/hierarchical layout
+- **Processing**: Natural language → Layout interpretation → Relationship analysis → Animated positioning
+
+#### Advanced Layout Features
+- **Relationship-based grouping**: Automatically detects node types and relationships from your command
+- **Schema-agnostic**: Works with any database schema by dynamically fetching node and relationship types
+- **Multiple layout algorithms**:
+  - Force-directed (default)
+  - Grouping by relationships
+  - Grouping by node type
+  - Circular layouts
+  - Hierarchical/tree layouts
+- **Smooth animations**: 1-second eased transitions between layouts
+
+### Voice Activation
+- Press **Thumb Menu Option 2** to start/stop voice recording
+- Real-time transcription appears in VR
+- Commands are automatically processed when recording stops
+- System automatically detects command type and routes appropriately
 
 ## Next Steps
 1. Create Cypher query interface with VR keyboard

@@ -25,15 +25,17 @@ class KuzuVRApp {
 		this.voiceInput = null;
 		
 		logger.info('Initializing Kùzu VR App (Simple)');
+		remoteLogger.info('🚀 App constructor started');
 		
 		// Test remote logging immediately
 		setTimeout(() => {
-			remoteLogger.info('🧪 Remote logging test from VR app startup');
+			remoteLogger.info('🧪 Remote logging test from VR app startup - 2s delay');
 		}, 2000);
 	}
 	
 	async setupScene({ scene, camera, renderer, handTracking }) {
 		logger.info('Setting up scene');
+		remoteLogger.info('📦 setupScene called');
 		
 		// Make scene globally available for VoiceInput
 		window.scene = scene;
@@ -471,7 +473,25 @@ class KuzuVRApp {
 				throw new Error('Failed to convert to Cypher');
 			}
 			
-			const { cypher } = await response.json();
+			const result = await response.json();
+			
+			// Check if it's a layout command
+			if (result.isLayoutCommand) {
+				logger.info('Layout command detected:', transcript);
+				remoteLogger.info('🎨 Layout command: ' + transcript);
+				
+				// Handle layout command
+				if (this.voiceInput) {
+					this.voiceInput.showTranscriptText('Layout: ' + transcript);
+				}
+				
+				// Process the layout command
+				await this.processLayoutCommand(transcript);
+				return;
+			}
+			
+			// Otherwise it's a Cypher query
+			const { cypher } = result;
 			logger.info('Converted to Cypher:', cypher);
 			
 			// Execute the Cypher query
@@ -486,14 +506,339 @@ class KuzuVRApp {
 		}
 	}
 	
+	async processLayoutCommand(transcript) {
+		logger.info('Processing layout command:', transcript);
+		remoteLogger.info('🎨 processLayoutCommand: ' + transcript);
+		
+		try {
+			// Get current nodes and edges
+			const nodes = this.nodeManager ? this.nodeManager.getNodes() : [];
+			const edges = this.edgeManager ? this.edgeManager.getEdges() : [];
+			
+			if (nodes.length === 0) {
+				if (this.voiceInput) {
+					this.voiceInput.showTranscriptText('No nodes to arrange');
+				}
+				return;
+			}
+			
+			// Simple layout implementation for now
+			// TODO: Integrate with RelationshipLayoutProcessor
+			const lowerTranscript = transcript.toLowerCase();
+			
+			if (lowerTranscript.includes('group') && 
+				(lowerTranscript.includes('employee') || lowerTranscript.includes('people') || lowerTranscript.includes('person')) && 
+				(lowerTranscript.includes('compan') || lowerTranscript.includes('organization'))) {
+				// Group employees around companies
+				await this.arrangeEmployeesAroundCompanies(nodes, edges);
+			} else if (lowerTranscript.includes('spread') || lowerTranscript.includes('apart') || 
+					   lowerTranscript.includes('space') || lowerTranscript.includes('separate')) {
+				// Spread nodes apart
+				await this.spreadNodesApart(nodes);
+			} else if (lowerTranscript.includes('circle') || lowerTranscript.includes('ring')) {
+				// Arrange in circle
+				await this.arrangeInCircle(nodes);
+			} else if (lowerTranscript.includes('hierarch') || lowerTranscript.includes('tree')) {
+				// Arrange hierarchically
+				await this.arrangeHierarchically(nodes, edges);
+			} else if (lowerTranscript.includes('cluster') && lowerTranscript.includes('type')) {
+				// Cluster by type
+				await this.clusterByType(nodes);
+			} else if (lowerTranscript.includes('force') || lowerTranscript.includes('spring')) {
+				// Force-directed layout
+				await this.forceDirectedLayout(nodes, edges);
+			} else {
+				if (this.voiceInput) {
+					this.voiceInput.showTranscriptText('Layout not recognized: ' + transcript);
+				}
+			}
+		} catch (error) {
+			logger.error('Layout command failed:', error);
+			remoteLogger.error('❌ Layout failed: ' + error.message);
+			if (this.voiceInput) {
+				this.voiceInput.showTranscriptText('Layout error: ' + error.message);
+			}
+		}
+	}
+	
+	async arrangeEmployeesAroundCompanies(nodes, edges) {
+		logger.info('Arranging employees around companies');
+		remoteLogger.info('📊 Arranging employees around companies');
+		
+		// Find company nodes
+		const companies = nodes.filter(node => 
+			node.userData?.label?.toLowerCase() === 'company' || 
+			node.userData?.type?.toLowerCase() === 'company'
+		);
+		
+		// Find person nodes
+		const people = nodes.filter(node => 
+			node.userData?.label?.toLowerCase() === 'person' || 
+			node.userData?.type?.toLowerCase() === 'person'
+		);
+		
+		if (companies.length === 0) {
+			if (this.voiceInput) {
+				this.voiceInput.showTranscriptText('No companies found');
+			}
+			return;
+		}
+		
+		// Position companies in a line
+		companies.forEach((company, index) => {
+			const x = (index - (companies.length - 1) / 2) * 3;
+			company.position.set(x, 0, 0);
+		});
+		
+		// Group people by their company (based on WorksAt edges)
+		const companyEmployees = new Map();
+		companies.forEach(company => companyEmployees.set(company.userData.id, []));
+		
+		// Find WorksAt relationships
+		edges.forEach(edge => {
+			if (edge.userData?.type === 'WorksAt' || edge.userData?.type === 'WORKS_AT') {
+				const person = nodes.find(n => n.userData.id === edge.userData.src);
+				const company = nodes.find(n => n.userData.id === edge.userData.dst);
+				
+				if (person && company && companyEmployees.has(company.userData.id)) {
+					companyEmployees.get(company.userData.id).push(person);
+				}
+			}
+		});
+		
+		// Position employees around their companies
+		companyEmployees.forEach((employees, companyId) => {
+			const company = companies.find(c => c.userData.id === companyId);
+			if (!company || employees.length === 0) return;
+			
+			const radius = 1.5;
+			employees.forEach((employee, index) => {
+				const angle = (index / employees.length) * Math.PI * 2;
+				const x = company.position.x + Math.cos(angle) * radius;
+				const z = company.position.z + Math.sin(angle) * radius;
+				employee.position.set(x, 0, z);
+			});
+		});
+		
+		// Position unassigned people to the side
+		const unassigned = people.filter(person => 
+			!Array.from(companyEmployees.values()).flat().includes(person)
+		);
+		
+		unassigned.forEach((person, index) => {
+			const x = companies.length * 2;
+			const z = (index - (unassigned.length - 1) / 2) * 0.5;
+			person.position.set(x, 0, z);
+		});
+		
+		// Update edges
+		this.edgeManager.update();
+		
+		if (this.voiceInput) {
+			this.voiceInput.showTranscriptText('Grouped employees around companies');
+		}
+	}
+	
+	async spreadNodesApart(nodes) {
+		const spread = 2;
+		nodes.forEach((node, index) => {
+			const angle = (index / nodes.length) * Math.PI * 2;
+			const radius = Math.sqrt(nodes.length) * spread / 2;
+			node.position.set(
+				Math.cos(angle) * radius,
+				0,
+				Math.sin(angle) * radius
+			);
+		});
+		
+		this.edgeManager.update();
+		
+		if (this.voiceInput) {
+			this.voiceInput.showTranscriptText('Spread nodes apart');
+		}
+	}
+	
+	async arrangeInCircle(nodes) {
+		const radius = Math.max(2, nodes.length * 0.3);
+		nodes.forEach((node, index) => {
+			const angle = (index / nodes.length) * Math.PI * 2;
+			node.position.set(
+				Math.cos(angle) * radius,
+				0,
+				Math.sin(angle) * radius
+			);
+		});
+		
+		this.edgeManager.update();
+		
+		if (this.voiceInput) {
+			this.voiceInput.showTranscriptText('Arranged in circle');
+		}
+	}
+	
+	async arrangeHierarchically(nodes, edges) {
+		logger.info('Arranging nodes hierarchically');
+		remoteLogger.info('🌳 Arranging hierarchically');
+		
+		// Find root nodes (no incoming edges)
+		const hasIncoming = new Set();
+		edges.forEach(edge => hasIncoming.add(edge.userData.dst));
+		
+		const roots = nodes.filter(node => !hasIncoming.has(node.userData.id));
+		const levels = new Map();
+		
+		// BFS to assign levels
+		const queue = roots.map(r => ({ node: r, level: 0 }));
+		const visited = new Set();
+		
+		while (queue.length > 0) {
+			const { node, level } = queue.shift();
+			if (visited.has(node.userData.id)) continue;
+			
+			visited.add(node.userData.id);
+			if (!levels.has(level)) levels.set(level, []);
+			levels.get(level).push(node);
+			
+			// Find children
+			edges.forEach(edge => {
+				if (edge.userData.src === node.userData.id) {
+					const child = nodes.find(n => n.userData.id === edge.userData.dst);
+					if (child && !visited.has(child.userData.id)) {
+						queue.push({ node: child, level: level + 1 });
+					}
+				}
+			});
+		}
+		
+		// Position nodes by level
+		const levelHeight = 2;
+		levels.forEach((nodesInLevel, level) => {
+			const y = -level * levelHeight;
+			nodesInLevel.forEach((node, index) => {
+				const x = (index - (nodesInLevel.length - 1) / 2) * 2;
+				node.position.set(x, y, 0);
+			});
+		});
+		
+		this.edgeManager.update();
+		
+		if (this.voiceInput) {
+			this.voiceInput.showTranscriptText('Arranged hierarchically');
+		}
+	}
+	
+	async clusterByType(nodes) {
+		logger.info('Clustering nodes by type');
+		remoteLogger.info('🔷 Clustering by type');
+		
+		// Group nodes by type
+		const typeGroups = new Map();
+		nodes.forEach(node => {
+			const type = node.userData.type || node.userData.label || 'unknown';
+			if (!typeGroups.has(type)) typeGroups.set(type, []);
+			typeGroups.get(type).push(node);
+		});
+		
+		// Position each type group in a cluster
+		const clusterRadius = 3;
+		let clusterIndex = 0;
+		
+		typeGroups.forEach((nodesOfType, type) => {
+			const clusterAngle = (clusterIndex / typeGroups.size) * Math.PI * 2;
+			const clusterX = Math.cos(clusterAngle) * clusterRadius * 2;
+			const clusterZ = Math.sin(clusterAngle) * clusterRadius * 2;
+			
+			// Arrange nodes within cluster
+			nodesOfType.forEach((node, index) => {
+				const angle = (index / nodesOfType.length) * Math.PI * 2;
+				const x = clusterX + Math.cos(angle) * clusterRadius / 2;
+				const z = clusterZ + Math.sin(angle) * clusterRadius / 2;
+				node.position.set(x, 0, z);
+			});
+			
+			clusterIndex++;
+		});
+		
+		this.edgeManager.update();
+		
+		if (this.voiceInput) {
+			this.voiceInput.showTranscriptText('Clustered by type');
+		}
+	}
+	
+	async forceDirectedLayout(nodes, edges) {
+		logger.info('Applying force-directed layout');
+		remoteLogger.info('⚡ Force-directed layout');
+		
+		// Simple force-directed layout simulation
+		const iterations = 50;
+		const repulsion = 5;
+		const attraction = 0.1;
+		
+		for (let iter = 0; iter < iterations; iter++) {
+			// Apply repulsion between all nodes
+			for (let i = 0; i < nodes.length; i++) {
+				for (let j = i + 1; j < nodes.length; j++) {
+					const dx = nodes[j].position.x - nodes[i].position.x;
+					const dz = nodes[j].position.z - nodes[i].position.z;
+					const dist = Math.sqrt(dx * dx + dz * dz) || 0.1;
+					
+					const force = repulsion / (dist * dist);
+					const fx = (dx / dist) * force;
+					const fz = (dz / dist) * force;
+					
+					nodes[i].position.x -= fx;
+					nodes[i].position.z -= fz;
+					nodes[j].position.x += fx;
+					nodes[j].position.z += fz;
+				}
+			}
+			
+			// Apply attraction along edges
+			edges.forEach(edge => {
+				const src = nodes.find(n => n.userData.id === edge.userData.src);
+				const dst = nodes.find(n => n.userData.id === edge.userData.dst);
+				
+				if (src && dst) {
+					const dx = dst.position.x - src.position.x;
+					const dz = dst.position.z - src.position.z;
+					const dist = Math.sqrt(dx * dx + dz * dz);
+					
+					if (dist > 0) {
+						const force = dist * attraction;
+						const fx = (dx / dist) * force;
+						const fz = (dz / dist) * force;
+						
+						src.position.x += fx;
+						src.position.z += fz;
+						dst.position.x -= fx;
+						dst.position.z -= fz;
+					}
+				}
+			});
+		}
+		
+		this.edgeManager.update();
+		
+		if (this.voiceInput) {
+			this.voiceInput.showTranscriptText('Applied force-directed layout');
+		}
+	}
+	
 	async start() {
+		remoteLogger.info('🎯 App.start() called');
 		try {
 			await init(
-				(globals) => this.setupScene(globals),
+				(globals) => {
+					remoteLogger.info('🔧 Init callback: setupScene');
+					return this.setupScene(globals);
+				},
 				(delta, time, globals) => this.onFrame(delta, time, globals)
 			);
+			remoteLogger.info('✅ Init completed successfully');
 		} catch (error) {
 			logger.error('Failed to start application:', error);
+			remoteLogger.error('❌ App start failed: ' + error.message);
 		}
 	}
 	

@@ -221,6 +221,52 @@
 				margin-bottom: 1.5rem;
 				color: #ccc;
 			}
+			
+			/* Toggle switch styles */
+			.switch {
+				position: relative;
+				display: inline-block;
+				width: 50px;
+				height: 24px;
+			}
+			
+			.switch input {
+				opacity: 0;
+				width: 0;
+				height: 0;
+			}
+			
+			.slider {
+				position: absolute;
+				cursor: pointer;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background-color: #4ade80;
+				transition: .4s;
+				border-radius: 24px;
+			}
+			
+			.slider:before {
+				position: absolute;
+				content: "";
+				height: 18px;
+				width: 18px;
+				left: 3px;
+				bottom: 3px;
+				background-color: white;
+				transition: .4s;
+				border-radius: 50%;
+			}
+			
+			input:checked + .slider {
+				background-color: #ef4444;
+			}
+			
+			input:checked + .slider:before {
+				transform: translateX(26px);
+			}
 		</style>
 	</head>
 	<body>
@@ -243,6 +289,21 @@
 				</div>
 				
 				<div id="status"></div>
+				
+				<!-- Edit Mode Toggle -->
+				<div class="input-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+					<label style="display: flex; align-items: center; justify-content: space-between;">
+						<span>Database Edit Mode</span>
+						<label class="switch" style="margin-left: 1rem;">
+							<input type="checkbox" id="edit-mode-toggle">
+							<span class="slider"></span>
+						</label>
+					</label>
+					<div class="info-text" style="margin-top: 0.5rem;">
+						<span id="mode-status" style="color: #4ade80;">✓ Read-Only Mode (Safe)</span><br>
+						<small>Enable to create, edit, or delete nodes in the database</small>
+					</div>
+				</div>
 				
 				<div class="xr-buttons">
 					<button class="xr-button vr" id="custom-vr-button">
@@ -286,28 +347,112 @@
 			document.addEventListener('DOMContentLoaded', () => {
 				const vrButton = document.getElementById('custom-vr-button');
 				const arButton = document.getElementById('custom-ar-button');
+				const editModeToggle = document.getElementById('edit-mode-toggle');
+				const modeStatus = document.getElementById('mode-status');
 				
 				// Database path is now always visible - no dropdown logic needed
+				
+				// Handle edit mode toggle
+				editModeToggle.addEventListener('change', (e) => {
+					const isEditMode = e.target.checked;
+					
+					if (isEditMode) {
+						// Show confirmation dialog
+						const confirmed = confirm(
+							'⚠️ Enable Edit Mode?\n\n' +
+							'This will allow you to:\n' +
+							'• Create new nodes and relationships\n' +
+							'• Edit existing data\n' +
+							'• Delete nodes and relationships\n\n' +
+							'These changes will be permanent in your database.\n\n' +
+							'Are you sure you want to continue?'
+						);
+						
+						if (confirmed) {
+							modeStatus.innerHTML = '⚠️ Edit Mode Active (Changes will be saved)';
+							modeStatus.style.color = '#ef4444';
+							localStorage.setItem('kuzuEditMode', 'true');
+						} else {
+							e.target.checked = false;
+						}
+					} else {
+						modeStatus.innerHTML = '✓ Read-Only Mode (Safe)';
+						modeStatus.style.color = '#4ade80';
+						localStorage.setItem('kuzuEditMode', 'false');
+					}
+				});
+				
+				// Restore edit mode state
+				const savedEditMode = localStorage.getItem('kuzuEditMode') === 'true';
+				if (savedEditMode) {
+					editModeToggle.checked = true;
+					modeStatus.innerHTML = '⚠️ Edit Mode Active (Changes will be saved)';
+					modeStatus.style.color = '#ef4444';
+				}
 				
 				// These will be replaced by actual XR buttons after they're created
 				let realVRButton = null;
 				let realARButton = null;
 				
 				// Check periodically for the real XR buttons
+				let checkCount = 0;
 				const checkInterval = setInterval(() => {
+					checkCount++;
 					const buttons = document.querySelectorAll('button');
+					
+					// Log to remote server for debugging
+					if (checkCount % 10 === 0) { // Log every second
+						fetch('/api/logs', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								level: 'info',
+								message: `🔍 Checking for XR buttons (attempt ${checkCount}): found ${buttons.length} buttons`
+							})
+						}).catch(() => {}); // Ignore errors
+					}
+					
 					buttons.forEach(button => {
 						if (button.textContent.includes('ENTER VR') && !realVRButton) {
 							realVRButton = button;
 							button.style.display = 'none';
+							fetch('/api/logs', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									level: 'info',
+									message: '✅ Found VR button!'
+								})
+							}).catch(() => {});
 						} else if (button.textContent.includes('ENTER AR') && !realARButton) {
 							realARButton = button;
 							button.style.display = 'none';
+							fetch('/api/logs', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									level: 'info',
+									message: '✅ Found AR button!'
+								})
+							}).catch(() => {});
 						}
 					});
 					
 					if (realVRButton && realARButton) {
 						clearInterval(checkInterval);
+					}
+					
+					// Stop after 30 seconds
+					if (checkCount > 300) {
+						clearInterval(checkInterval);
+						fetch('/api/logs', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								level: 'error',
+								message: '❌ XR buttons not found after 30 seconds'
+							})
+						}).catch(() => {});
 					}
 				}, 100);
 				

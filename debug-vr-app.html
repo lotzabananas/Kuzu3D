@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug VR App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            margin: 0; 
+            font-family: monospace; 
+            background: #000; 
+            color: #0f0;
+        }
+        #logPanel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100vh;
+            background: rgba(0,0,0,0.9);
+            border-left: 2px solid #0f0;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 12px;
+            z-index: 10000;
+        }
+        iframe {
+            width: calc(100% - 400px);
+            height: 100vh;
+            border: none;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px;
+            border-bottom: 1px solid #222;
+        }
+        .error { color: #f00; }
+        .warn { color: #ff0; }
+        .info { color: #0ff; }
+        .success { color: #0f0; }
+    </style>
+</head>
+<body>
+    <iframe id="vrApp" src="https://localhost:8081"></iframe>
+    <div id="logPanel">
+        <h3>VR App Debug Log</h3>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        const logs = document.getElementById('logs');
+        const iframe = document.getElementById('vrApp');
+        
+        function addLog(msg, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toISOString().substring(11, 19)}] ${msg}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        // Monitor iframe loading
+        addLog('Loading VR app...', 'info');
+        
+        iframe.onload = () => {
+            addLog('Iframe loaded', 'success');
+            
+            // Try to inject monitoring script
+            try {
+                const iframeWin = iframe.contentWindow;
+                const iframeDoc = iframe.contentDocument;
+                
+                if (iframeWin && iframeDoc) {
+                    addLog('Iframe accessible', 'success');
+                    
+                    // Monitor XR session
+                    iframeWin.addEventListener('message', (e) => {
+                        if (e.data && e.data.type === 'xr-log') {
+                            addLog(e.data.message, e.data.level || 'info');
+                        }
+                    });
+                    
+                    // Inject monitoring script
+                    const script = iframeDoc.createElement('script');
+                    script.textContent = `
+                        console.log('VR App monitoring injected');
+                        
+                        // Override console methods
+                        const originalLog = console.log;
+                        const originalError = console.error;
+                        const originalWarn = console.warn;
+                        
+                        console.log = function(...args) {
+                            originalLog.apply(console, args);
+                            window.parent.postMessage({
+                                type: 'xr-log',
+                                level: 'info',
+                                message: 'LOG: ' + args.join(' ')
+                            }, '*');
+                        };
+                        
+                        console.error = function(...args) {
+                            originalError.apply(console, args);
+                            window.parent.postMessage({
+                                type: 'xr-log',
+                                level: 'error',
+                                message: 'ERROR: ' + args.join(' ')
+                            }, '*');
+                        };
+                        
+                        console.warn = function(...args) {
+                            originalWarn.apply(console, args);
+                            window.parent.postMessage({
+                                type: 'xr-log',
+                                level: 'warn',
+                                message: 'WARN: ' + args.join(' ')
+                            }, '*');
+                        };
+                        
+                        // Monitor XR button clicks
+                        document.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'BUTTON' && 
+                                (e.target.textContent.includes('VR') || e.target.textContent.includes('AR'))) {
+                                console.log('XR button clicked:', e.target.textContent);
+                            }
+                        });
+                        
+                        // Monitor XR session
+                        if ('xr' in navigator) {
+                            console.log('WebXR supported');
+                            
+                            // Check session support
+                            navigator.xr.isSessionSupported('immersive-vr').then(supported => {
+                                console.log('VR supported:', supported);
+                            });
+                            
+                            navigator.xr.isSessionSupported('immersive-ar').then(supported => {
+                                console.log('AR supported:', supported);
+                            });
+                        } else {
+                            console.error('WebXR not supported');
+                        }
+                        
+                        // Check for KuzuVRApp
+                        setTimeout(() => {
+                            if (window.app) {
+                                console.log('KuzuVRApp found');
+                            } else {
+                                console.error('KuzuVRApp not found on window');
+                            }
+                        }, 1000);
+                    `;
+                    iframeDoc.head.appendChild(script);
+                    
+                } else {
+                    addLog('Cannot access iframe (CORS)', 'warn');
+                }
+            } catch (e) {
+                addLog('Error accessing iframe: ' + e.message, 'error');
+            }
+        };
+        
+        iframe.onerror = (e) => {
+            addLog('Iframe error: ' + e, 'error');
+        };
+        
+        // Listen for messages
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'xr-log') {
+                addLog(e.data.message, e.data.level || 'info');
+            }
+        });
+    </script>
+</body>
+</html>

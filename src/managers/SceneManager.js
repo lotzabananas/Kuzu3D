@@ -1,6 +1,6 @@
 import * as THREE from 'three';
+import { DriftModes, GentleDriftManager } from './GentleDriftManager.js';
 import { VISUAL_CONFIG } from '../constants/index.js';
-import { GentleDriftManager, DriftModes } from './GentleDriftManager.js';
 
 export class SceneManager {
 	constructor(scene, renderer) {

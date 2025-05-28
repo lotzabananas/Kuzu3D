@@ -569,6 +569,16 @@ app.post('/api/cypher/fromText', async (req, res) => {
 			});
 		}
 
+		// Check if this is a layout command
+		if (nlService.isLayoutCommand(text)) {
+			return res.json({
+				success: true,
+				isLayoutCommand: true,
+				cypher: null,
+				message: 'This is a layout command, not a query'
+			});
+		}
+
 		// Get current database schema
 		let schema = null;
 		if (conn) {

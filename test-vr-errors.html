@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VR Error Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            margin: 20px; 
+            font-family: monospace; 
+            background: #000; 
+            color: #0f0;
+        }
+        #output {
+            white-space: pre-wrap;
+            padding: 10px;
+            border: 1px solid #0f0;
+            height: 80vh;
+            overflow-y: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #222;
+            color: #0f0;
+            border: 1px solid #0f0;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0f0;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>VR Error Debugging</h1>
+    <div>
+        <button onclick="loadApp()">Load Kuzu VR App</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(msg, type = 'info') {
+            const timestamp = new Date().toISOString().substring(11, 19);
+            const prefix = {
+                'error': '❌',
+                'warn': '⚠️',
+                'info': 'ℹ️',
+                'success': '✅'
+            }[type] || '•';
+            
+            output.innerHTML += `[${timestamp}] ${prefix} ${msg}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clearOutput() {
+            output.innerHTML = '';
+        }
+        
+        // Intercept console methods
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            log('LOG: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            log('ERROR: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            log('WARN: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
+        };
+        
+        // Catch global errors
+        window.addEventListener('error', (event) => {
+            log(`UNCAUGHT ERROR: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`, 'error');
+            if (event.error && event.error.stack) {
+                log('Stack trace:\n' + event.error.stack, 'error');
+            }
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            log(`UNHANDLED PROMISE REJECTION: ${event.reason}`, 'error');
+            if (event.reason && event.reason.stack) {
+                log('Stack trace:\n' + event.reason.stack, 'error');
+            }
+        });
+        
+        async function loadApp() {
+            log('Loading Kuzu VR app in iframe...', 'info');
+            
+            // Create iframe
+            const iframe = document.createElement('iframe');
+            iframe.src = 'https://localhost:8081';
+            iframe.style.width = '100%';
+            iframe.style.height = '600px';
+            iframe.style.border = '2px solid #0f0';
+            iframe.style.marginTop = '20px';
+            
+            // Try to capture iframe errors
+            iframe.onload = () => {
+                log('Iframe loaded', 'success');
+                try {
+                    // Try to access iframe content (might be blocked by CORS)
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    log('Iframe document accessible', 'success');
+                    
+                    // Inject error monitoring
+                    const script = iframeDoc.createElement('script');
+                    script.textContent = `
+                        window.parent.postMessage({type: 'log', message: 'Iframe script injected'}, '*');
+                        
+                        window.addEventListener('error', (e) => {
+                            window.parent.postMessage({
+                                type: 'error',
+                                message: e.message,
+                                filename: e.filename,
+                                lineno: e.lineno,
+                                colno: e.colno,
+                                stack: e.error ? e.error.stack : null
+                            }, '*');
+                        });
+                        
+                        window.addEventListener('unhandledrejection', (e) => {
+                            window.parent.postMessage({
+                                type: 'rejection',
+                                reason: e.reason.toString(),
+                                stack: e.reason.stack || null
+                            }, '*');
+                        });
+                    `;
+                    iframeDoc.head.appendChild(script);
+                } catch (e) {
+                    log('Cannot access iframe content (CORS): ' + e.message, 'warn');
+                }
+            };
+            
+            iframe.onerror = (e) => {
+                log('Iframe load error: ' + e, 'error');
+            };
+            
+            document.body.appendChild(iframe);
+            
+            // Listen for messages from iframe
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type) {
+                    switch (event.data.type) {
+                        case 'log':
+                            log('IFRAME: ' + event.data.message, 'info');
+                            break;
+                        case 'error':
+                            log(`IFRAME ERROR: ${event.data.message} at ${event.data.filename}:${event.data.lineno}:${event.data.colno}`, 'error');
+                            if (event.data.stack) {
+                                log('Stack:\n' + event.data.stack, 'error');
+                            }
+                            break;
+                        case 'rejection':
+                            log('IFRAME PROMISE REJECTION: ' + event.data.reason, 'error');
+                            if (event.data.stack) {
+                                log('Stack:\n' + event.data.stack, 'error');
+                            }
+                            break;
+                    }
+                }
+            });
+        }
+        
+        // Also try direct fetch to check for module errors
+        async function checkModules() {
+            log('Checking app modules...', 'info');
+            
+            try {
+                const response = await fetch('https://localhost:8081/app-simple.js');
+                const text = await response.text();
+                log(`app-simple.js loaded, size: ${text.length} bytes`, 'success');
+                
+                // Check for obvious syntax errors
+                if (text.includes('SyntaxError') || text.includes('ReferenceError')) {
+                    log('Found error in app-simple.js!', 'error');
+                }
+            } catch (e) {
+                log('Failed to fetch app-simple.js: ' + e.message, 'error');
+            }
+        }
+        
+        // Auto-check on load
+        checkModules();
+    </script>
+</body>
+</html>

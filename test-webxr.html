@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebXR Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            margin: 20px; 
+            font-family: monospace; 
+            background: #000; 
+            color: #0f0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #222;
+            color: #0f0;
+            border: 1px solid #0f0;
+            cursor: pointer;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #0f0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebXR Diagnostic</h1>
+    <button onclick="checkWebXR()">Check WebXR Support</button>
+    <button onclick="testVRSession()">Test VR Session</button>
+    <button onclick="testARSession()">Test AR Session</button>
+    <button onclick="checkAppLoad()">Check App Load</button>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(msg, isError = false) {
+            const timestamp = new Date().toISOString().substring(11, 19);
+            output.innerHTML += `[${timestamp}] ${isError ? '❌' : '✅'} ${msg}\n`;
+        }
+        
+        async function checkWebXR() {
+            log('Checking WebXR support...');
+            
+            if ('xr' in navigator) {
+                log('WebXR API available');
+                
+                try {
+                    const vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
+                    log(`VR supported: ${vrSupported}`);
+                    
+                    const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+                    log(`AR supported: ${arSupported}`);
+                } catch (e) {
+                    log(`Error checking session support: ${e.message}`, true);
+                }
+            } else {
+                log('WebXR not available in navigator', true);
+            }
+            
+            // Check HTTPS
+            log(`Page protocol: ${window.location.protocol}`);
+            log(`Secure context: ${window.isSecureContext}`);
+        }
+        
+        async function testVRSession() {
+            log('Testing VR session...');
+            
+            if (!navigator.xr) {
+                log('WebXR not available', true);
+                return;
+            }
+            
+            try {
+                const sessionInit = {
+                    requiredFeatures: ['local-floor'],
+                    optionalFeatures: ['hand-tracking', 'bounded-floor']
+                };
+                
+                log('Requesting VR session with options: ' + JSON.stringify(sessionInit));
+                
+                const session = await navigator.xr.requestSession('immersive-vr', sessionInit);
+                log('VR session created successfully!');
+                
+                // End session after 2 seconds
+                setTimeout(() => {
+                    session.end();
+                    log('VR session ended');
+                }, 2000);
+                
+            } catch (e) {
+                log(`VR session error: ${e.message}`, true);
+                log(`Error stack: ${e.stack}`, true);
+            }
+        }
+        
+        async function testARSession() {
+            log('Testing AR session...');
+            
+            if (!navigator.xr) {
+                log('WebXR not available', true);
+                return;
+            }
+            
+            try {
+                const sessionInit = {
+                    requiredFeatures: ['local-floor'],
+                    optionalFeatures: ['hand-tracking', 'mesh-detection', 'hit-test']
+                };
+                
+                log('Requesting AR session with options: ' + JSON.stringify(sessionInit));
+                
+                const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
+                log('AR session created successfully!');
+                
+                // End session after 2 seconds
+                setTimeout(() => {
+                    session.end();
+                    log('AR session ended');
+                }, 2000);
+                
+            } catch (e) {
+                log(`AR session error: ${e.message}`, true);
+                log(`Error stack: ${e.stack}`, true);
+            }
+        }
+        
+        async function checkAppLoad() {
+            log('Checking Kuzu VR app load...');
+            
+            try {
+                // Fetch the main bundle
+                const response = await fetch('https://localhost:8081/index.bundle.js');
+                if (response.ok) {
+                    const text = await response.text();
+                    log(`Bundle loaded: ${text.length} bytes`);
+                    
+                    // Check for common errors
+                    if (text.includes('Failed to start application')) {
+                        log('Found "Failed to start application" in bundle', true);
+                    }
+                    
+                    // Check for KuzuVRApp
+                    if (text.includes('class KuzuVRApp')) {
+                        log('KuzuVRApp class found in bundle');
+                    } else {
+                        log('KuzuVRApp class NOT found in bundle', true);
+                    }
+                } else {
+                    log(`Failed to load bundle: ${response.status}`, true);
+                }
+                
+                // Check the HTML
+                const htmlResponse = await fetch('https://localhost:8081/');
+                if (htmlResponse.ok) {
+                    const html = await htmlResponse.text();
+                    if (html.includes('index.bundle.js')) {
+                        log('Bundle script tag found in HTML');
+                    }
+                    if (html.includes('ui-container')) {
+                        log('UI container found in HTML');
+                    }
+                }
+                
+            } catch (e) {
+                log(`Error checking app: ${e.message}`, true);
+            }
+        }
+        
+        // Auto-run basic check
+        checkWebXR();
+    </script>
+</body>
+</html>

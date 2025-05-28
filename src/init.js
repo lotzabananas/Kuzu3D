@@ -9,10 +9,14 @@ import * as THREE from 'three';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 // import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; // Disabled for passthrough
 import { HandTracking } from './hand-tracking.js';
-import { setupQuestPassthrough } from './simple-passthrough.js';
 import { XRButton } from './XRButton.js';
+import { setupQuestPassthrough } from './simple-passthrough.js';
 
 export async function init(setupScene = () => {}, onFrame = () => {}) {
+	// Import remote logger for debugging
+	const { remoteLogger } = await import('./utils/RemoteLogger.js');
+	remoteLogger.info('🏁 init() function started');
+	
 	const container = document.createElement('div');
 	document.body.appendChild(container);
 
@@ -128,6 +132,7 @@ export async function init(setupScene = () => {}, onFrame = () => {}) {
 	renderer.setAnimationLoop(animate);
 
 	// Add separate VR and AR buttons
+	remoteLogger.info('🔘 Creating XR buttons...');
 	const sessionInit = {
 		domOverlay: { root: document.body }
 	};
@@ -136,9 +141,11 @@ export async function init(setupScene = () => {}, onFrame = () => {}) {
 	const vrButton = XRButton.createButton(renderer, sessionInit, 'immersive-vr');
 	vrButton.style.left = 'calc(50% - 110px)';
 	document.body.appendChild(vrButton);
+	remoteLogger.info('🥽 VR button created with text: ' + vrButton.textContent);
 	
 	// Create AR button
 	const arButton = XRButton.createButton(renderer, sessionInit, 'immersive-ar');
 	arButton.style.left = 'calc(50% + 10px)';
 	document.body.appendChild(arButton);
+	remoteLogger.info('📱 AR button created with text: ' + arButton.textContent);
 }

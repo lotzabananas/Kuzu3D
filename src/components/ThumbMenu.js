@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { debugManager } from '../utils/DebugManager.js';
 import { logger } from '../utils/Logger.js';
+import { remoteLogger } from '../utils/RemoteLogger.js';
 
 /**
  * Experimental thumb-controlled radial menu
@@ -141,6 +142,18 @@ export class ThumbMenu {
 		
 		const wrist = hand.joints['wrist'];
 		if (!wrist) return;
+		
+		// Debug: Check which hand this is
+		const handedness = hand.inputSource?.handedness || 'unknown';
+		logger.warn(`🖐️ ThumbMenu.activate called with ${handedness} hand`);
+		remoteLogger.warn(`🖐️ ThumbMenu.activate called with ${handedness} hand`);
+		
+		// Safety check - only activate on left hand
+		if (handedness === 'right') {
+			logger.error('❌ ThumbMenu should NEVER be activated on right hand!');
+			remoteLogger.error('❌ ThumbMenu should NEVER be activated on right hand!');
+			return;
+		}
 		
 		this.isActive = true;
 		this.menuGroup.visible = true;

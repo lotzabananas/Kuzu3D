@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { logger } from '../utils/Logger.js';
 import { VISUAL_CONFIG } from '../constants/index.js';
 import { colorGenerator } from '../utils/ColorGenerator.js';
+import { logger } from '../utils/Logger.js';
 
 export class EdgeManager {
 	constructor(scene) {
@@ -48,22 +48,41 @@ export class EdgeManager {
 		const edgeGroup = new THREE.Group();
 		edgeGroup.userData = edgeData;
 		
-		// Create simple line geometry
-		const geometry = new THREE.BufferGeometry();
+		// Create both line and cylinder for better visibility
+		// 1. Create simple line geometry (for thin representation)
+		const lineGeometry = new THREE.BufferGeometry();
 		const positions = new Float32Array(6); // 2 points * 3 coordinates
-		geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+		lineGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 		
 		// Create line material with dynamically generated color
 		const edgeColor = colorGenerator.getColorForType(edgeData.type || 'default');
-		const material = new THREE.LineBasicMaterial({
+		const lineMaterial = new THREE.LineBasicMaterial({
 			color: edgeColor,
 			linewidth: 2,
 			transparent: true,
-			opacity: VISUAL_CONFIG.edge.opacity
+			opacity: VISUAL_CONFIG.edge.opacity,
+			// Ensure lines render from all angles
+			depthWrite: true,
+			depthTest: true
 		});
 		
-		const line = new THREE.Line(geometry, material);
+		const line = new THREE.Line(lineGeometry, lineMaterial);
+		// Disable frustum culling so lines don't disappear
+		line.frustumCulled = false;
 		edgeGroup.add(line);
+		
+		// 2. Create cylinder for better visibility from all angles
+		const cylinderGeometry = new THREE.CylinderGeometry(0.01, 0.01, 1, 8);
+		const cylinderMaterial = new THREE.MeshBasicMaterial({
+			color: edgeColor,
+			transparent: true,
+			opacity: VISUAL_CONFIG.edge.opacity * 0.6, // Slightly more transparent
+			side: THREE.DoubleSide // Visible from all angles
+		});
+		
+		const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+		cylinder.frustumCulled = false;
+		edgeGroup.add(cylinder);
 		
 		// Create label for relationship type (using mesh instead of sprite for alignment)
 		const label = this.createEdgeLabel(edgeData.type);
@@ -73,6 +92,7 @@ export class EdgeManager {
 		edgeGroup.fromNode = fromNode;
 		edgeGroup.toNode = toNode;
 		edgeGroup.line = line;
+		edgeGroup.cylinder = cylinder;
 		edgeGroup.label = label;
 		
 		return edgeGroup;
@@ -106,7 +126,8 @@ export class EdgeManager {
 			transparent: true,
 			depthTest: false,    // Don't test depth - allows other lines to show through
 			depthWrite: false,   // Don't write to depth buffer
-			opacity: 0.9        // Slightly transparent to see lines behind
+			opacity: 0.9,        // Slightly transparent to see lines behind
+			sizeAttenuation: true // Scale with distance
 		});
 		
 		const sprite = new THREE.Sprite(spriteMaterial);
@@ -144,11 +165,21 @@ export class EdgeManager {
 			// Calculate midpoint and direction
 			const midPoint = new THREE.Vector3().addVectors(fromPos, toPos).multiplyScalar(0.5);
 			const direction = new THREE.Vector3().subVectors(toPos, fromPos);
-			// const distance = direction.length(); // Reserved for future use
+			const distance = direction.length();
 			direction.normalize();
 			
+			// Update cylinder position and orientation
+			if (edge.cylinder) {
+				edge.cylinder.position.copy(midPoint);
+				edge.cylinder.scale.set(1, distance, 1);
+				edge.cylinder.lookAt(toPos);
+				edge.cylinder.rotateX(Math.PI / 2); // Cylinders are oriented along Y by default
+			}
+			
 			// Position label at midpoint of the line
-			edge.label.position.copy(midPoint);
+			if (edge.label) {
+				edge.label.position.copy(midPoint);
+			}
 			
 			// Get the graph scale from node's parent (the nodeGroup)
 			const nodeGroup = edge.fromNode.parent;
@@ -166,6 +197,8 @@ export class EdgeManager {
 			this.edgeGroup.remove(edge);
 			edge.line.geometry.dispose();
 			edge.line.material.dispose();
+			edge.cylinder.geometry.dispose();
+			edge.cylinder.material.dispose();
 			if (edge.label.material.map) {
 				edge.label.material.map.dispose();
 			}
