@@ -172,6 +172,10 @@
 				border-color: #764ba2;
 			}
 			
+			.xr-button.desktop {
+				border-color: #22d3ee;
+			}
+			
 			.xr-button:hover {
 				transform: translateY(-2px);
 				background: rgba(255, 255, 255, 0.15);
@@ -183,6 +187,10 @@
 			
 			.xr-button.ar:hover {
 				box-shadow: 0 5px 20px rgba(118, 75, 162, 0.4);
+			}
+			
+			.xr-button.desktop:hover {
+				box-shadow: 0 5px 20px rgba(34, 211, 238, 0.4);
 			}
 			
 			.info-text {
@@ -312,11 +320,15 @@
 					<button class="xr-button ar" id="custom-ar-button">
 						📱 Enter AR
 					</button>
+					<button class="xr-button desktop" id="custom-desktop-button">
+						🖥️ Desktop Mode
+					</button>
 				</div>
 				
 				<div class="info-text">
 					VR Mode: Full virtual environment<br>
-					AR Mode: Passthrough with virtual objects
+					AR Mode: Passthrough with virtual objects<br>
+					Desktop Mode: Mouse & keyboard controls
 				</div>
 			</div>
 		</div>
@@ -347,6 +359,7 @@
 			document.addEventListener('DOMContentLoaded', () => {
 				const vrButton = document.getElementById('custom-vr-button');
 				const arButton = document.getElementById('custom-ar-button');
+				const desktopButton = document.getElementById('custom-desktop-button');
 				const editModeToggle = document.getElementById('edit-mode-toggle');
 				const modeStatus = document.getElementById('mode-status');
 				
@@ -457,6 +470,12 @@
 				}, 100);
 				
 				vrButton.addEventListener('click', async () => {
+					// Start the VR app if not already started
+					if (window.kuzuApp && !window.vrModeStarted) {
+						window.vrModeStarted = true;
+						window.kuzuApp.start();
+					}
+					
 					// Show permission prompt
 					const micPrompt = document.getElementById('mic-prompt');
 					micPrompt.style.display = 'block';
@@ -477,6 +496,12 @@
 				});
 				
 				arButton.addEventListener('click', async () => {
+					// Start the AR app if not already started
+					if (window.kuzuApp && !window.arModeStarted) {
+						window.arModeStarted = true;
+						window.kuzuApp.start();
+					}
+					
 					// Show permission prompt
 					const micPrompt = document.getElementById('mic-prompt');
 					micPrompt.style.display = 'block';
@@ -494,6 +519,39 @@
 					if (realARButton) {
 						realARButton.click();
 					}
+				});
+				
+				desktopButton.addEventListener('click', async () => {
+					// Check if database is connected
+					const statusDiv = document.getElementById('status');
+					if (!window.kuzuApp || !window.kuzuApp.dataService || !window.kuzuApp.dataService.connected) {
+						statusDiv.textContent = 'Please connect to a database first';
+						statusDiv.style.color = '#ff6b6b';
+						return;
+					}
+					
+					// Request microphone permission for voice commands
+					const micPrompt = document.getElementById('mic-prompt');
+					micPrompt.style.display = 'block';
+					
+					const hasPermission = await requestMicrophonePermission();
+					micPrompt.style.display = 'none';
+					
+					if (!hasPermission) {
+						statusDiv.textContent = 'Microphone permission recommended for voice commands';
+						statusDiv.style.color = '#fbbf24';
+					}
+					
+					// Hide the UI and launch desktop mode
+					const uiContainer = document.getElementById('ui-container');
+					uiContainer.classList.add('hidden');
+					
+					// Set a flag for desktop mode
+					window.isDesktopMode = true;
+					
+					// The app-simple.js will check this flag and initialize desktop mode
+					// Trigger a custom event to notify the app
+					window.dispatchEvent(new CustomEvent('startDesktopMode'));
 				});
 			});
 		</script>

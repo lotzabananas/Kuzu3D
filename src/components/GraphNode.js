@@ -24,6 +24,8 @@ export class GraphNode extends THREE.Group {
 		});
 		
 		this.sphere = new THREE.Mesh(geometry, material);
+		this.sphere.userData.isNode = true; // Mark for raycasting
+		this.sphere.userData.id = nodeData.id;
 		this.add(this.sphere);
 		
 		// Create text label
@@ -34,6 +36,9 @@ export class GraphNode extends THREE.Group {
 		this.nodeIndex = index;
 		this.originalColor = material.color.clone();
 		this.material = material; // Store reference for color changes
+		
+		// Also mark the group as a node
+		this.userData.isNode = true;
 		
 		// Set initial position
 		this.setPosition(index, totalNodes);

@@ -23,9 +23,13 @@ class KuzuVRApp {
 		this.uiManager = null;
 		this.handTracking = null;
 		this.voiceInput = null;
+		this.databaseData = null; // Store loaded data until scene is ready
 		
 		logger.info('Initializing Kùzu VR App (Simple)');
 		remoteLogger.info('🚀 App constructor started');
+		
+		// Set up UI immediately (for database loading)
+		this.setupDatabaseUI();
 		
 		// Test remote logging immediately
 		setTimeout(() => {
@@ -33,9 +37,9 @@ class KuzuVRApp {
 		}, 2000);
 	}
 	
-	async setupScene({ scene, camera, renderer, handTracking }) {
-		logger.info('Setting up scene');
-		remoteLogger.info('📦 setupScene called');
+	async setupScene({ scene, camera, renderer, handTracking, isDesktopMode }) {
+		logger.info('Setting up scene' + (isDesktopMode ? ' (Desktop Mode)' : ''));
+		remoteLogger.info('📦 setupScene called' + (isDesktopMode ? ' for desktop' : ''));
 		
 		// Make scene globally available for VoiceInput
 		window.scene = scene;
@@ -45,9 +49,21 @@ class KuzuVRApp {
 		this.nodeManager = new NodeManager(scene);
 		this.edgeManager = new EdgeManager(scene);
 		this.handTracking = handTracking;
+		this.isDesktopMode = isDesktopMode;
 		
-		// Initialize basic UI Manager
-		this.uiManager = new UIManagerBasic(scene, camera, renderer, handTracking);
+		// Initialize UI Manager only for VR/AR mode
+		if (!isDesktopMode) {
+			this.uiManager = new UIManagerBasic(scene, camera, renderer, handTracking);
+		} else {
+			// Create a minimal UI manager for desktop mode
+			this.uiManager = {
+				update: () => {},
+				legend: null,
+				thumbMenu: null
+			};
+			
+			// Don't create 3D legend for desktop mode - it will be HTML-based
+		}
 		
 		// Set up drift state callback for menu visual updates
 		this.sceneManager.onDriftStateChange((enabled) => {
@@ -56,30 +72,62 @@ class KuzuVRApp {
 			}
 		});
 		
-		// Initialize Voice Input
-		this.voiceInput = new VoiceInput();
-		scene.add(this.voiceInput.container);
+		// Load stored database data if available
+		if (this.databaseData) {
+			logger.info('Loading stored database data into scene');
+			
+			// Pre-generate edge colors from schema
+			if (this.databaseData.relationshipTypes && this.edgeManager) {
+				this.edgeManager.generateColorsFromSchema(this.databaseData.relationshipTypes);
+			}
+			
+			// Create nodes
+			this.nodeManager.createNodes(this.databaseData.nodes);
+			
+			// Update legend (desktop mode will handle this in HTML)
+			if (this.uiManager && this.uiManager.legend && !isDesktopMode) {
+				this.uiManager.legend.updateNodeTypes(this.databaseData.nodes);
+			} else if (isDesktopMode && window.updateDesktopLegend) {
+				window.updateDesktopLegend(this.databaseData.nodes);
+			}
+			
+			// Create edges
+			if (this.databaseData.edges && this.databaseData.edges.length > 0) {
+				this.edgeManager.createEdges(this.databaseData.edges, this.nodeManager);
+				logger.info(`Created ${this.databaseData.edges.length} edges`);
+			}
+			
+			// Clear stored data
+			this.databaseData = null;
+		}
 		
-		// Handle voice transcripts
-		this.voiceInput.onTranscriptReceived = async (transcript) => {
-			await this.processVoiceCommand(transcript);
-		};
-		
-		// Add gesture visualizer to scene
-		this.handTracking.addVisualizerToScene(scene);
+		// Initialize Voice Input (only in VR/AR mode for now)
+		if (!isDesktopMode) {
+			this.voiceInput = new VoiceInput();
+			scene.add(this.voiceInput.container);
+			
+			// Handle voice transcripts
+			this.voiceInput.onTranscriptReceived = async (transcript) => {
+				await this.processVoiceCommand(transcript);
+			};
+			
+			// Add gesture visualizer to scene
+			this.handTracking.addVisualizerToScene(scene);
+			
+			// Setup gesture callbacks
+			this.setupGestureControls();
+		}
 		
 		// Add debug panel
 		this.debugPanel = new DebugPanel();
 		this.debugPanel.addToScene(scene);
 		
-		// Setup gesture callbacks
-		this.setupGestureControls();
-		
 		// Set up UI
 		this.setupUI();
 		
-		// Set up XR session handling
-		renderer.xr.addEventListener('sessionstart', () => {
+		// Set up XR session handling (only for VR/AR mode)
+		if (!isDesktopMode && renderer.xr) {
+			renderer.xr.addEventListener('sessionstart', () => {
 			const session = renderer.xr.getSession();
 			this.sceneManager.onXRSessionStart(session);
 			
@@ -99,8 +147,9 @@ class KuzuVRApp {
 				uiContainer.classList.remove('hidden');
 			}
 			
-			logger.info('XR session ended');
-		});
+				logger.info('XR session ended');
+			});
+		}
 	}
 	
 	onFrame(delta, _time, { scene: _scene, handTracking: _handTracking }) {
@@ -124,8 +173,8 @@ class KuzuVRApp {
 			this.sceneManager.updateDrift();
 		}
 		
-		// Update voice input
-		if (this.voiceInput) {
+		// Update voice input (only in VR/AR mode)
+		if (this.voiceInput && !this.isDesktopMode) {
 			this.voiceInput.update(delta);
 			
 			// Always update position to follow LEFT hand (not right)
@@ -146,13 +195,13 @@ class KuzuVRApp {
 			this.debugPanel.update({
 				fps: 1 / delta,
 				nodeCount: this.nodeManager ? this.nodeManager.nodes.length : 0,
-				leftGesture: this.handTracking.getCurrentGesture('left'),
-				rightGesture: this.handTracking.getCurrentGesture('right')
+				leftGesture: this.isDesktopMode ? 'N/A' : this.handTracking.getCurrentGesture('left'),
+				rightGesture: this.isDesktopMode ? 'N/A' : this.handTracking.getCurrentGesture('right')
 			});
 		}
 	}
 	
-	setupUI() {
+	setupDatabaseUI() {
 		const loadButton = document.getElementById('load-db');
 		const dbPath = document.getElementById('db-path');
 		const statusDiv = document.getElementById('status');
@@ -167,6 +216,9 @@ class KuzuVRApp {
 			}
 			await this.loadDatabase(databasePath, statusDiv, uiContainer);
 		});
+	}
+	
+	setupUI() {
 		
 		// Scene manager will handle passthrough based on XR mode
 		
@@ -394,8 +446,9 @@ class KuzuVRApp {
 			}
 			
 			// Get schema and pre-generate edge colors
+			let schemaResult = null;
 			try {
-				const schemaResult = await this.dataService.getSchema();
+				schemaResult = await this.dataService.getSchema();
 				if (schemaResult.success && schemaResult.schema) {
 					const { relationshipTypes } = schemaResult.schema;
 					if (relationshipTypes && this.edgeManager) {
@@ -422,15 +475,32 @@ class KuzuVRApp {
 				label: node.label
 			}));
 			
+			// Load edges
+			const edgesResult = await this.dataService.getEdges();
+			
+			// Store data for later if scene isn't ready
+			if (!this.nodeManager || !this.edgeManager) {
+				logger.info('Scene not ready - storing database data for later');
+				this.databaseData = {
+					nodes: nodes,
+					edges: edgesResult.success ? edgesResult.edges : [],
+					relationshipTypes: schemaResult?.schema?.relationshipTypes || []
+				};
+				statusDiv.textContent = `✅ Database connected. ${nodes.length} nodes loaded. Select a view mode to visualize.`;
+				return;
+			}
+			
+			// Otherwise create visualization immediately
 			this.nodeManager.createNodes(nodes);
 			
 			// Update legend with current node types
-			if (this.uiManager && this.uiManager.legend) {
+			if (this.uiManager && this.uiManager.legend && !this.isDesktopMode) {
 				this.uiManager.legend.updateNodeTypes(nodes);
+			} else if (this.isDesktopMode && window.updateDesktopLegend) {
+				window.updateDesktopLegend(nodes);
 			}
 			
-			// Load and create edges
-			const edgesResult = await this.dataService.getEdges();
+			// Create edges
 			if (edgesResult.success && edgesResult.edges) {
 				this.edgeManager.createEdges(edgesResult.edges, this.nodeManager);
 				logger.info(`Loaded ${edgesResult.edges.length} edges`);
@@ -936,8 +1006,10 @@ class KuzuVRApp {
 					this.nodeManager.createNodes(transformedNodes);
 					
 					// Update legend
-					if (this.uiManager && this.uiManager.legend) {
+					if (this.uiManager && this.uiManager.legend && !this.isDesktopMode) {
 						this.uiManager.legend.updateNodeTypes(transformedNodes);
+					} else if (this.isDesktopMode && window.updateDesktopLegend) {
+						window.updateDesktopLegend(transformedNodes);
 					}
 					
 					// Query for relationships
@@ -1037,8 +1109,10 @@ class KuzuVRApp {
 				this.nodeManager.createNodes(transformedNodes);
 				
 				// Update legend
-				if (this.uiManager && this.uiManager.legend) {
+				if (this.uiManager && this.uiManager.legend && !this.isDesktopMode) {
 					this.uiManager.legend.updateNodeTypes(transformedNodes);
+				} else if (this.isDesktopMode && window.updateDesktopLegend) {
+					window.updateDesktopLegend(transformedNodes);
 				}
 				
 				// Load edges from server
@@ -1074,6 +1148,41 @@ class KuzuVRApp {
 	}
 }
 
-// Start the application
-const app = new KuzuVRApp();
-app.start();
+// Create the application but don't start it yet
+window.kuzuApp = new KuzuVRApp();
+
+// Check if desktop mode is already requested (e.g., from URL parameter)
+if (window.isDesktopMode) {
+	// Import and use desktop initialization
+	import('./init-desktop.js').then(({ initDesktop }) => {
+		initDesktop(
+			(globals) => window.kuzuApp.setupScene(globals),
+			(delta, time, globals) => window.kuzuApp.onFrame(delta, time, globals)
+		);
+	});
+} else {
+	// Don't auto-start VR mode - wait for user choice
+	console.log('Waiting for user to select VR/AR/Desktop mode...');
+}
+
+// Listen for desktop mode event from home screen
+window.addEventListener('startDesktopMode', () => {
+	console.log('Desktop mode requested');
+	window.isDesktopMode = true;
+	
+	// Only initialize if not already started
+	if (!window.desktopModeStarted) {
+		window.desktopModeStarted = true;
+		import('./init-desktop.js').then(({ initDesktop }) => {
+			console.log('Initializing desktop mode...');
+			initDesktop(
+				(globals) => window.kuzuApp.setupScene(globals),
+				(delta, time, globals) => window.kuzuApp.onFrame(delta, time, globals)
+			);
+		}).catch(error => {
+			console.error('Failed to initialize desktop mode:', error);
+		});
+	}
+});
+
+// Start VR/AR when XR button is clicked (handled by XRButton.js)

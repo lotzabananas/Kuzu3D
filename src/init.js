@@ -6,11 +6,11 @@
  */
 
 import * as THREE from 'three';
+import { HandTracking } from './hand-tracking.js';
+import { setupQuestPassthrough } from './simple-passthrough.js';
+import { XRButton } from './XRButton.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 // import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; // Disabled for passthrough
-import { HandTracking } from './hand-tracking.js';
-import { XRButton } from './XRButton.js';
-import { setupQuestPassthrough } from './simple-passthrough.js';
 
 export async function init(setupScene = () => {}, onFrame = () => {}) {
 	// Import remote logger for debugging
