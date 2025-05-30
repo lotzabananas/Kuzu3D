@@ -328,11 +328,19 @@ export async function initDesktop(setupScene = () => {}, onFrame = () => {}) {
 	// Call the user-provided setup function
 	setupScene(globals);
 
-	// Add UI overlay for desktop controls
-	createDesktopUI();
+	// Add UI overlay for desktop controls (with error handling)
+	try {
+		createDesktopUI();
+	} catch (error) {
+		console.error('Desktop UI creation failed:', error);
+	}
 	
-	// Set up voice input for desktop mode
-	setupDesktopVoiceInput(scene);
+	// Set up voice input for desktop mode (with error handling)
+	try {
+		setupDesktopVoiceInput(scene);
+	} catch (error) {
+		console.warn('Voice input setup failed (non-critical):', error);
+	}
 	
 	// Debug: Log initialization
 	console.log('Desktop mode initialized:', {
@@ -371,6 +379,13 @@ export async function initDesktop(setupScene = () => {}, onFrame = () => {}) {
 }
 
 function createDesktopUI() {
+	// Safety check - ensure document is ready
+	if (!document.body) {
+		console.error('Document body not ready for UI creation');
+		setTimeout(createDesktopUI, 100); // Retry after 100ms
+		return;
+	}
+	
 	// Create legend container first (above controls)
 	const legendContainer = document.createElement('div');
 	legendContainer.id = 'desktop-legend';
@@ -466,6 +481,12 @@ function createDesktopUI() {
 	const header = document.getElementById('ui-header');
 	const content = document.getElementById('ui-content');
 	const arrow = document.getElementById('collapse-arrow');
+	
+	if (!header || !content || !arrow) {
+		console.warn('UI elements not found for collapsible setup');
+		return;
+	}
+	
 	let isCollapsed = false;
 	
 	header.addEventListener('click', () => {
@@ -490,13 +511,27 @@ function createDesktopUI() {
 	// Set up desktop legend functionality
 	window.desktopLegendVisible = false;
 	window.toggleDesktopLegend = function() {
-		window.desktopLegendVisible = !window.desktopLegendVisible;
-		legendContainer.style.display = window.desktopLegendVisible ? 'block' : 'none';
+		try {
+			if (!legendContainer || !legendContainer.style) {
+				console.warn('Legend container not available');
+				return;
+			}
+			window.desktopLegendVisible = !window.desktopLegendVisible;
+			legendContainer.style.display = window.desktopLegendVisible ? 'block' : 'none';
+		} catch (error) {
+			console.error('Legend toggle failed:', error);
+		}
 	};
 	
 	// Update legend with node data
 	window.updateDesktopLegend = function(nodes) {
-		const nodeTypes = new Map();
+		try {
+			if (!nodes || !Array.isArray(nodes)) {
+				console.warn('Invalid nodes data for legend update');
+				return;
+			}
+			
+			const nodeTypes = new Map();
 		
 		// Get colors using the same system as the 3D nodes
 		const getNodeColor = (nodeType) => {
@@ -535,6 +570,11 @@ function createDesktopUI() {
 		
 		// Generate legend HTML
 		const legendContent = document.getElementById('legend-content');
+		if (!legendContent) {
+			console.warn('Legend content element not found');
+			return;
+		}
+		
 		let html = '<table style="width: 100%; border-collapse: collapse;">';
 		
 		nodeTypes.forEach((color, type) => {
@@ -563,6 +603,10 @@ function createDesktopUI() {
 		
 		html += '</table>';
 		legendContent.innerHTML = html;
+		
+		} catch (error) {
+			console.error('Desktop legend update failed:', error);
+		}
 	};
 }
 
@@ -570,12 +614,13 @@ function createDesktopUI() {
 function setupDesktopVoiceInput(scene) {
 	// Import VoiceInput if available
 	import('./components/VoiceInput.js').then(({ VoiceInput }) => {
-		const voiceInput = new VoiceInput();
-		scene.add(voiceInput.container);
-		
-		// Position it in top-right corner for desktop
-		voiceInput.container.position.set(2, 2, -4);
-		voiceInput.container.visible = false; // Start hidden
+		try {
+			const voiceInput = new VoiceInput();
+			scene.add(voiceInput.container);
+			
+			// Position it in top-right corner for desktop
+			voiceInput.container.position.set(2, 2, -4);
+			voiceInput.container.visible = false; // Start hidden
 		
 		// Create desktop voice controller
 		window.desktopVoiceInput = {
@@ -635,33 +680,61 @@ function setupDesktopVoiceInput(scene) {
 		};
 		
 		console.log('Desktop voice input initialized');
+		
+		} catch (error) {
+			console.error('Voice input initialization failed:', error);
+			// Create fallback voice controller
+			window.desktopVoiceInput = {
+				isRecording: false,
+				toggle() { console.warn('Voice input not available'); },
+				start() { console.warn('Voice input not available'); },
+				stop() { console.warn('Voice input not available'); },
+				update() {}
+			};
+		}
 	}).catch(error => {
-		console.error('Failed to load VoiceInput:', error);
+		console.error('Failed to load VoiceInput module:', error);
+		// Create fallback voice controller
+		window.desktopVoiceInput = {
+			isRecording: false,
+			toggle() { console.warn('Voice input not available'); },
+			start() { console.warn('Voice input not available'); },
+			stop() { console.warn('Voice input not available'); },
+			update() {}
+		};
 	});
 }
 
 function setupVoiceButton() {
 	const button = document.getElementById('voice-button');
-	if (!button) return;
+	if (!button) {
+		console.warn('Voice button not found in DOM');
+		return;
+	}
 	
-	button.addEventListener('click', () => {
-		if (window.desktopVoiceInput) {
-			window.desktopVoiceInput.toggle();
-		} else {
-			console.warn('Voice input not initialized yet');
-		}
-	});
+	try {
+		button.addEventListener('click', () => {
+			if (window.desktopVoiceInput) {
+				window.desktopVoiceInput.toggle();
+			} else {
+				console.warn('Voice input not initialized yet');
+			}
+		});
 	
-	// Add hover effect
-	button.addEventListener('mouseenter', () => {
-		if (!window.desktopVoiceInput?.isRecording) {
-			button.style.transform = 'translateY(-2px)';
-			button.style.boxShadow = '0 5px 15px rgba(102, 126, 234, 0.4)';
-		}
-	});
-	
-	button.addEventListener('mouseleave', () => {
-		button.style.transform = 'translateY(0)';
-		button.style.boxShadow = 'none';
-	});
+		// Add hover effect
+		button.addEventListener('mouseenter', () => {
+			if (!window.desktopVoiceInput?.isRecording) {
+				button.style.transform = 'translateY(-2px)';
+				button.style.boxShadow = '0 5px 15px rgba(102, 126, 234, 0.4)';
+			}
+		});
+		
+		button.addEventListener('mouseleave', () => {
+			button.style.transform = 'translateY(0)';
+			button.style.boxShadow = 'none';
+		});
+		
+	} catch (error) {
+		console.error('Voice button setup failed:', error);
+	}
 }
