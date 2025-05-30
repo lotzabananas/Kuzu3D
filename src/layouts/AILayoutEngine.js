@@ -1,7 +1,7 @@
-import { Logger } from '../utils/Logger.js';
-import { LayoutParser } from './LayoutParser.js';
 import { LayoutCompiler } from './LayoutCompiler.js';
 import { LayoutExecutor } from './LayoutExecutor.js';
+import { LayoutParser } from './LayoutParser.js';
+import { Logger } from '../utils/Logger.js';
 
 const logger = new Logger('AILayoutEngine');
 

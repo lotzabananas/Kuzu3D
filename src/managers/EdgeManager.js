@@ -72,7 +72,7 @@ export class EdgeManager {
 		edgeGroup.add(line);
 		
 		// 2. Create cylinder for better visibility from all angles
-		const cylinderGeometry = new THREE.CylinderGeometry(0.01, 0.01, 1, 8);
+		const cylinderGeometry = new THREE.CylinderGeometry(0.001, 0.001, 1, 6); // Ultra-thin lines
 		const cylinderMaterial = new THREE.MeshBasicMaterial({
 			color: edgeColor,
 			transparent: true,

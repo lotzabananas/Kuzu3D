@@ -40,7 +40,7 @@ export class NodeGrabbing {
 		return indicator;
 	}
 	
-	update(leftHand, rightHand, nodeManager, scene) {
+	update(leftHand, rightHand, nodeManager, _scene) {
 		if (!nodeManager || nodeManager.nodes.length === 0) return;
 		
 		// Check for hand-node intersections

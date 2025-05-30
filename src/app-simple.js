@@ -13,33 +13,40 @@ import { debugManager } from './utils/DebugManager.js';
 import { init } from './init.js';
 import { logger } from './utils/Logger.js';
 import { remoteLogger } from './utils/RemoteLogger.js';
+import { ErrorHandler } from './utils/ErrorHandler.js';
 
 class KuzuVRApp {
 	constructor() {
-		this.dataService = new DataService();
-		this.nodeManager = null;
-		this.edgeManager = null;
-		this.sceneManager = null;
-		this.uiManager = null;
-		this.handTracking = null;
-		this.voiceInput = null;
-		this.databaseData = null; // Store loaded data until scene is ready
-		
-		logger.info('Initializing Kùzu VR App (Simple)');
-		remoteLogger.info('🚀 App constructor started');
-		
-		// Set up UI immediately (for database loading)
-		this.setupDatabaseUI();
-		
-		// Test remote logging immediately
-		setTimeout(() => {
-			remoteLogger.info('🧪 Remote logging test from VR app startup - 2s delay');
-		}, 2000);
+		try {
+			// Set up global error handlers first
+			ErrorHandler.setupGlobalHandlers();
+			
+			this.dataService = new DataService();
+			this.nodeManager = null;
+			this.edgeManager = null;
+			this.sceneManager = null;
+			this.uiManager = null;
+			this.handTracking = null;
+			this.voiceInput = null;
+			this.databaseData = null; // Store loaded data until scene is ready
+			this.isInitialized = false;
+			
+			logger.info('Initializing Kùzu VR App (Simple)');
+			remoteLogger.info('🚀 App constructor started');
+			
+			// Set up UI immediately (for database loading)
+			this.setupDatabaseUI();
+			
+			this.isInitialized = true;
+		} catch (error) {
+			ErrorHandler.handle(error, { component: 'KuzuVRApp', method: 'constructor' });
+		}
 	}
 	
 	async setupScene({ scene, camera, renderer, handTracking, isDesktopMode }) {
-		logger.info('Setting up scene' + (isDesktopMode ? ' (Desktop Mode)' : ''));
-		remoteLogger.info('📦 setupScene called' + (isDesktopMode ? ' for desktop' : ''));
+		try {
+			logger.info('Setting up scene' + (isDesktopMode ? ' (Desktop Mode)' : ''));
+			remoteLogger.info('📦 setupScene called' + (isDesktopMode ? ' for desktop' : ''));
 		
 		// Make scene globally available for VoiceInput
 		window.scene = scene;
@@ -150,13 +157,18 @@ class KuzuVRApp {
 				logger.info('XR session ended');
 			});
 		}
+		} catch (error) {
+			ErrorHandler.handle(error, { component: 'KuzuVRApp', method: 'setupScene' });
+			throw error; // Re-throw to prevent app from continuing in broken state
+		}
 	}
 	
 	onFrame(delta, _time, { scene: _scene, handTracking: _handTracking }) {
-		// Update node animations
-		if (this.nodeManager) {
-			this.nodeManager.update(delta);
-		}
+		try {
+			// Safely update node animations
+			if (this.nodeManager) {
+				this.nodeManager.update(delta);
+			}
 		
 		// Update edge positions
 		if (this.edgeManager) {
@@ -199,6 +211,11 @@ class KuzuVRApp {
 				rightGesture: this.isDesktopMode ? 'N/A' : this.handTracking.getCurrentGesture('right')
 			});
 		}
+		} catch (error) {
+			// Don't show UI errors in onFrame as they happen frequently
+			// Just log them and continue
+			logger.error('onFrame error:', error);
+		}
 	}
 	
 	setupDatabaseUI() {
@@ -206,6 +223,7 @@ class KuzuVRApp {
 		const dbPath = document.getElementById('db-path');
 		const statusDiv = document.getElementById('status');
 		const uiContainer = document.getElementById('ui-container');
+		const sampleButton = document.getElementById('load-sample');
 		
 		// Database loading
 		loadButton.addEventListener('click', async () => {
@@ -216,6 +234,16 @@ class KuzuVRApp {
 			}
 			await this.loadDatabase(databasePath, statusDiv, uiContainer);
 		});
+		
+		// Sample database button
+		if (sampleButton) {
+			sampleButton.addEventListener('click', async () => {
+				dbPath.value = 'sample';
+				statusDiv.textContent = 'Loading sample database...';
+				statusDiv.style.color = '#22d3ee';
+				await this.loadDatabase('sample', statusDiv, uiContainer);
+			});
+		}
 	}
 	
 	setupUI() {
@@ -431,6 +459,78 @@ class KuzuVRApp {
 	}
 	
 	async loadDatabase(dbPath, statusDiv, _uiContainer) {
+		// Handle sample database case
+		if (dbPath === 'sample') {
+			try {
+				// Load sample database first if not already loaded
+				if (!this.dataService.usingSampleData) {
+					const loadResult = await this.dataService.loadSampleDatabase();
+					if (!loadResult.success) {
+						statusDiv.textContent = `❌ ${loadResult.message}`;
+						statusDiv.style.color = '#ef4444';
+						return;
+					}
+				}
+				
+				// Now get the data
+				const nodesResult = await this.dataService.getNodes();
+				const edgesResult = await this.dataService.getEdges();
+					
+					if (nodesResult.success) {
+						// Transform nodes to expected format
+						const nodes = nodesResult.nodes.map((node, index) => ({
+							id: node.id || index,
+							data: node.data,
+							label: node.label,
+							type: node.type
+						}));
+						
+						// Create visualization immediately if managers are available
+						if (this.nodeManager && this.edgeManager) {
+							// Pre-generate edge colors from schema
+							const schemaResult = await this.dataService.getSchema();
+							if (schemaResult.success && schemaResult.schema) {
+								const { relationshipTypes } = schemaResult.schema;
+								if (relationshipTypes && this.edgeManager) {
+									this.edgeManager.generateColorsFromSchema(relationshipTypes);
+								}
+							}
+							
+							this.nodeManager.createNodes(nodes);
+							
+							// Update legend
+							if (this.uiManager && this.uiManager.legend && !this.isDesktopMode) {
+								this.uiManager.legend.updateNodeTypes(nodes);
+							} else if (this.isDesktopMode && window.updateDesktopLegend) {
+								window.updateDesktopLegend(nodes);
+							}
+							
+							// Create edges
+							if (edgesResult.success && edgesResult.edges) {
+								this.edgeManager.createEdges(edgesResult.edges, this.nodeManager);
+							}
+							
+							statusDiv.innerHTML = `✅ Sample database loaded!<br><small>${nodes.length} nodes and ${edgesResult.edges?.length || 0} relationships ready to explore</small>`;
+							statusDiv.style.color = '#10b981';
+						} else {
+							// Store data for later if scene isn't ready
+							this.databaseData = {
+								nodes: nodes,
+								edges: edgesResult.success ? edgesResult.edges : [],
+								relationshipTypes: []
+							};
+							statusDiv.innerHTML = `✅ Sample database ready!<br><small>Select a view mode to start exploring</small>`;
+							statusDiv.style.color = '#10b981';
+						}
+					}
+				return;
+			} catch (error) {
+				statusDiv.textContent = `❌ Error loading sample database: ${error.message}`;
+				statusDiv.style.color = '#ef4444';
+				return;
+			}
+		}
+		
 		if (!dbPath) {
 			statusDiv.textContent = 'Please enter a database path';
 			return;
@@ -914,22 +1014,12 @@ class KuzuVRApp {
 	
 	async executeCypherQuery(query) {
 		try {
-			console.log('🔍 === CYPHER PIPELINE DEBUG START ===');
-			console.log('🔍 Step 1: VR App executeCypherQuery called with:', query);
-			console.log('🔍 Step 2: DataService connected:', this.dataService.connected);
-			console.log('🔍 Step 2: DataService object:', this.dataService);
-			console.log('🔍 Step 2: DataService apiUrl:', this.dataService.apiUrl);
-			
 			// Check if connected to database
 			if (!this.dataService.connected) {
-				console.log('❌ DataService says not connected. Attempting to reconnect...');
-				
 				// Try to reconnect using the current database path
 				const dbPathInput = document.getElementById('db-path');
 				if (dbPathInput && dbPathInput.value) {
-					console.log('🔄 Reconnecting to:', dbPathInput.value);
 					const connectResult = await this.dataService.connect(dbPathInput.value);
-					console.log('🔄 Reconnect result:', connectResult);
 					
 					if (!connectResult.success) {
 						if (this.voiceInput) {
@@ -945,31 +1035,15 @@ class KuzuVRApp {
 				}
 			}
 			
-			// Use DataService to execute the query
-			console.log('🔍 Step 7: Calling DataService.executeCypherQuery...');
 			const result = await this.dataService.executeCypherQuery(query);
 			
-			console.log('🔍 Step 8: DataService returned result');
-			console.log('🔍 Step 8: result.success:', result.success);
-			console.log('🔍 Step 8: result.data:', result.data);
-			console.log('🔍 Step 8: result.data type:', typeof result.data);
-			if (result.data) {
-				console.log('🔍 Step 8: result.data.nodes:', result.data.nodes);
-				console.log('🔍 Step 8: result.data.nodes length:', result.data.nodes?.length);
-			}
-			
 			if (result.success) {
-				console.log('✅ Step 9: Cypher query successful');
-				console.log('✅ Step 9: Full result object:', JSON.stringify(result, null, 2));
-				
 				// Check different possible data structures
 				let nodeCount = 0;
 				if (result.data?.nodes) {
 					nodeCount = result.data.nodes.length;
-					console.log('🔍 Step 9: Found nodes array with', nodeCount, 'items');
 				} else if (Array.isArray(result.data)) {
 					nodeCount = result.data.length;
-					console.log('🔍 Step 9: result.data is direct array with', nodeCount, 'items');
 				}
 				
 				logger.info(`Query returned ${nodeCount} results`);
@@ -977,7 +1051,6 @@ class KuzuVRApp {
 				// Update the visualization with query results
 				if (nodeCount > 0) {
 					const nodes = result.data?.nodes || result.data;
-					console.log('🔄 Updating visualization with', nodes.length, 'nodes');
 					
 					// Transform nodes to ensure proper structure
 					const transformedNodes = nodes.map(node => {

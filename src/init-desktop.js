@@ -10,17 +10,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 export async function initDesktop(setupScene = () => {}, onFrame = () => {}) {
-	console.log('Browser detection - Safari:', isSafari, 'UserAgent:', navigator.userAgent);
-	
 	// Import remote logger for debugging with Safari fallback
 	let remoteLogger = { info: console.log, error: console.error };
 	try {
 		const module = await import('./utils/RemoteLogger.js');
 		remoteLogger = module.remoteLogger;
 	} catch (e) {
-		console.warn('Dynamic import failed (Safari issue), using console fallback:', e);
+		// Fallback to console
 	}
-	remoteLogger.info(`🖥️ initDesktop() function started (Safari: ${isSafari})`);
 	
 	const container = document.createElement('div');
 	container.style.position = 'fixed';

@@ -3,10 +3,27 @@ module.exports = {
 		browser: true,
 		es2021: true,
 	},
-	extends: ['eslint:recommended', 'prettier'],
+	extends: ['eslint:recommended'],
 	parserOptions: {
 		ecmaVersion: 12,
 		sourceType: 'module',
+	},
+	globals: {
+		window: "readonly",
+		document: "readonly",
+		console: "readonly",
+		fetch: "readonly",
+		navigator: "readonly",
+		setTimeout: "readonly",
+		clearTimeout: "readonly",
+		setInterval: "readonly",
+		clearInterval: "readonly",
+		requestAnimationFrame: "readonly",
+		URL: "readonly",
+		URLSearchParams: "readonly",
+		FormData: "readonly",
+		localStorage: "readonly",
+		confirm: "readonly"
 	},
 	rules: {
 		'sort-imports': [

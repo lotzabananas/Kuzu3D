@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GraphNode } from '../components/GraphNode.js';
-// VISUAL_CONFIG is imported but not used
-// import { VISUAL_CONFIG } from '../constants/index.js';
+import { MemoryManager } from '../utils/MemoryManager.js';
+import { logger } from '../utils/Logger.js';
 
 export class NodeManager {
 	constructor(scene) {
@@ -9,31 +9,71 @@ export class NodeManager {
 		this.nodeGroup = new THREE.Group();
 		this.nodes = [];
 		this.selectedNode = null;
+		this.maxNodes = 10000; // Performance limit
 		
 		this.scene.add(this.nodeGroup);
+		MemoryManager.register(this.nodeGroup, 'nodeGroup');
 	}
 	
 	createNodes(nodeDataArray) {
 		// Clear existing nodes
 		this.clearNodes();
 		
-		// Create new nodes
-		nodeDataArray.forEach((nodeData, index) => {
-			const node = new GraphNode(nodeData, index, nodeDataArray.length);
-			this.nodes.push(node);
-			this.nodeGroup.add(node);
-		});
+		// Check performance limits
+		if (nodeDataArray.length > this.maxNodes) {
+			logger.warn(`Too many nodes (${nodeDataArray.length}), limiting to ${this.maxNodes} for performance`);
+			nodeDataArray = nodeDataArray.slice(0, this.maxNodes);
+		}
 		
-		console.log(`Created ${this.nodes.length} nodes`);
+		// Create new nodes with batching for performance
+		const batchSize = 100;
+		let processed = 0;
+		
+		const processBatch = () => {
+			const endIndex = Math.min(processed + batchSize, nodeDataArray.length);
+			
+			for (let i = processed; i < endIndex; i++) {
+				const nodeData = nodeDataArray[i];
+				const node = new GraphNode(nodeData, i, nodeDataArray.length);
+				
+				// Register for memory management
+				MemoryManager.register(node, 'graphNode');
+				MemoryManager.optimize(node);
+				
+				this.nodes.push(node);
+				this.nodeGroup.add(node);
+			}
+			
+			processed = endIndex;
+			
+			// Continue processing in next frame if not done
+			if (processed < nodeDataArray.length) {
+				requestAnimationFrame(processBatch);
+			} else {
+				logger.info(`Created ${this.nodes.length} nodes`);
+				
+				// Check memory after creation
+				MemoryManager.checkMemoryPressure();
+			}
+		};
+		
+		// Start batch processing
+		processBatch();
 	}
 	
 	clearNodes() {
 		this.nodes.forEach(node => {
 			this.nodeGroup.remove(node);
-			node.dispose();
+			// Use memory manager for proper disposal
+			MemoryManager.dispose(node);
 		});
 		this.nodes = [];
 		this.selectedNode = null;
+		
+		// Force memory cleanup after clearing large number of nodes
+		if (this.nodes.length > 1000) {
+			setTimeout(() => MemoryManager.checkMemoryPressure(), 100);
+		}
 	}
 	
 	update(_deltaTime) {

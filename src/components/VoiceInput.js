@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import ThreeMeshUI from 'three-mesh-ui';
-import { UI_CONFIG } from '../constants/index.js';
 import { logger } from '../utils/Logger.js';
-import { remoteLogger } from '../utils/RemoteLogger.js';
 
 export class VoiceInput {
 	constructor() {

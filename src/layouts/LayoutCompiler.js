@@ -1,5 +1,5 @@
-import { Logger } from '../utils/Logger.js';
 import * as THREE from 'three';
+import { Logger } from '../utils/Logger.js';
 
 const logger = new Logger('LayoutCompiler');
 

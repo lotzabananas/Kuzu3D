@@ -288,8 +288,20 @@
 				<div class="input-group">
 					<label for="db-path">Kùzu Database Path</label>
 					<div class="input-wrapper">
-						<input type="text" id="db-path" placeholder="/path/to/your/kuzu/database" value="/Users/timmac/Desktop/Kuzu3D/test-kuzu-db">
+						<input type="text" id="db-path" placeholder="/path/to/your/kuzu/database">
 						<button id="load-db">Connect</button>
+						<button id="load-sample" style="
+							padding: 0.75rem 1rem;
+							background: #10b981;
+							border: none;
+							border-radius: 8px;
+							color: white;
+							font-size: 0.9rem;
+							font-weight: 500;
+							cursor: pointer;
+							transition: all 0.3s ease;
+							margin-left: 0.5rem;
+						" title="Try sample database">Sample</button>
 					</div>
 					<div class="info-text" style="margin-top: 0.5rem;">
 						Enter the full path to your Kùzu database directory
@@ -402,6 +414,42 @@
 					modeStatus.innerHTML = '⚠️ Edit Mode Active (Changes will be saved)';
 					modeStatus.style.color = '#ef4444';
 				}
+				
+				// Handle sample database button
+				const sampleButton = document.getElementById('load-sample');
+				const loadButton = document.getElementById('load-db');
+				const statusDiv = document.getElementById('status');
+				
+				sampleButton.addEventListener('click', async () => {
+					if (window.kuzuApp && window.kuzuApp.dataService) {
+						statusDiv.textContent = 'Loading sample database...';
+						statusDiv.style.color = '#22d3ee';
+						
+						const result = await window.kuzuApp.dataService.loadSampleDatabase();
+						
+						if (result.success) {
+							statusDiv.innerHTML = `✅ ${result.message}<br><small>Ready to explore ${result.nodeCount} nodes and ${result.edgeCount} relationships!</small>`;
+							statusDiv.style.color = '#10b981';
+							
+							// Load the sample data into the visualization
+							await window.kuzuApp.loadDatabase('sample', statusDiv, null);
+						} else {
+							statusDiv.textContent = `❌ ${result.message}`;
+							statusDiv.style.color = '#ef4444';
+						}
+					}
+				});
+				
+				// Add hover effect to sample button
+				sampleButton.addEventListener('mouseenter', () => {
+					sampleButton.style.transform = 'translateY(-2px)';
+					sampleButton.style.boxShadow = '0 5px 15px rgba(16, 185, 129, 0.4)';
+				});
+				
+				sampleButton.addEventListener('mouseleave', () => {
+					sampleButton.style.transform = 'translateY(0)';
+					sampleButton.style.boxShadow = 'none';
+				});
 				
 				// These will be replaced by actual XR buttons after they're created
 				let realVRButton = null;

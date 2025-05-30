@@ -5,9 +5,12 @@ export const APP_CONFIG = {
 	description: 'Graph database visualization in WebXR'
 };
 
-// Server configuration
+// Server configuration - use environment config in production
 export const SERVER_CONFIG = {
-	apiUrl: '/api',
+	apiUrl: window.location.hostname === 'localhost' || 
+	        window.location.hostname === '127.0.0.1' ||
+	        window.location.hostname.includes('192.168.') ? 
+		'http://localhost:3000/api' : '/api',
 	port: 3000,
 	timeout: 30000
 };
@@ -51,8 +54,8 @@ export const VISUAL_CONFIG = {
 	},
 	edge: {
 		defaultColor: 0x888888,     // Gray
-		width: 0.01,
-		opacity: 0.8,
+		width: 0.001,              // Ultra-thin lines
+		opacity: 0.6,              // More transparent
 		// Color palette for auto-generation (HSL-based for good distribution)
 		colorPalette: {
 			hueStart: 0,           // Starting hue (0-360)
