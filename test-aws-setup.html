@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kùzu 3D - AWS Integration Test</title>
+    
+    <!-- AWS Amplify -->
+    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
+    
+    <!-- Stripe (for later) -->
+    <script src="https://js.stripe.com/v3/"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kùzu 3D - AWS Integration Test</h1>
+        
+        <!-- AWS Configuration -->
+        <div class="section">
+            <h2>1. AWS Configuration</h2>
+            <p>Replace these with your actual AWS values:</p>
+            <pre id="config-display">
+// You'll get these values from AWS Console
+const awsConfig = {
+    Auth: {
+        region: 'us-east-1',
+        userPoolId: 'YOUR_USER_POOL_ID',
+        userPoolWebClientId: 'YOUR_CLIENT_ID',
+    },
+    // Optional: S3 for storing user data
+    Storage: {
+        AWSS3: {
+            bucket: 'YOUR_S3_BUCKET',
+            region: 'us-east-1',
+        }
+    }
+};
+            </pre>
+            <div class="status info">
+                ⚠️ Update the config above with your AWS values after creating resources
+            </div>
+        </div>
+
+        <!-- Authentication Test -->
+        <div class="section">
+            <h2>2. Authentication Test</h2>
+            
+            <!-- Sign Up -->
+            <h3>Sign Up</h3>
+            <input type="email" id="signup-email" placeholder="Email">
+            <input type="password" id="signup-password" placeholder="Password">
+            <button onclick="testSignUp()">Sign Up</button>
+            
+            <!-- Sign In -->
+            <h3>Sign In</h3>
+            <input type="email" id="signin-email" placeholder="Email">
+            <input type="password" id="signin-password" placeholder="Password">
+            <button onclick="testSignIn()">Sign In</button>
+            
+            <!-- Current User -->
+            <h3>Current User</h3>
+            <button onclick="getCurrentUser()">Get Current User</button>
+            <button onclick="signOut()">Sign Out</button>
+            
+            <div id="auth-status" class="status" style="display:none;"></div>
+        </div>
+
+        <!-- Stripe Integration Test -->
+        <div class="section">
+            <h2>3. Stripe Integration (Future)</h2>
+            <p>Stripe integration will handle:</p>
+            <ul>
+                <li>Subscription management</li>
+                <li>Usage-based billing</li>
+                <li>Payment processing</li>
+            </ul>
+            <button onclick="testStripe()">Test Stripe Connection</button>
+            <div id="stripe-status" class="status" style="display:none;"></div>
+        </div>
+
+        <!-- VR App Integration -->
+        <div class="section">
+            <h2>4. VR App Integration Plan</h2>
+            <p>Once AWS is set up, we'll integrate:</p>
+            <ul>
+                <li>User authentication before entering VR</li>
+                <li>Save user preferences and graph states to S3</li>
+                <li>Track usage for billing</li>
+                <li>Enable collaboration features</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // AWS Configuration (Replace with your actual values)
+        const awsConfig = {
+            Auth: {
+                region: 'us-east-1', // Change if using different region
+                userPoolId: 'YOUR_USER_POOL_ID', // e.g., 'us-east-1_xxxxxx'
+                userPoolWebClientId: 'YOUR_CLIENT_ID', // e.g., '1234567890abcdef'
+            }
+        };
+
+        // Initialize AWS Amplify (uncomment when you have real config)
+        // AWS.Amplify.configure(awsConfig);
+
+        // Test Functions
+        async function testSignUp() {
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            
+            showStatus('auth-status', 'info', 'Attempting sign up...');
+            
+            try {
+                // Uncomment when AWS is configured
+                // const { user } = await AWS.Amplify.Auth.signUp({
+                //     username: email,
+                //     password: password,
+                //     attributes: {
+                //         email: email
+                //     }
+                // });
+                
+                // For now, just simulate
+                showStatus('auth-status', 'success', 
+                    `Sign up would be attempted for: ${email}\n` +
+                    `Configure AWS Cognito first!`);
+            } catch (error) {
+                showStatus('auth-status', 'error', `Error: ${error.message}`);
+            }
+        }
+
+        async function testSignIn() {
+            const email = document.getElementById('signin-email').value;
+            const password = document.getElementById('signin-password').value;
+            
+            showStatus('auth-status', 'info', 'Attempting sign in...');
+            
+            try {
+                // Uncomment when AWS is configured
+                // const user = await AWS.Amplify.Auth.signIn(email, password);
+                
+                // For now, just simulate
+                showStatus('auth-status', 'success', 
+                    `Sign in would be attempted for: ${email}\n` +
+                    `Configure AWS Cognito first!`);
+            } catch (error) {
+                showStatus('auth-status', 'error', `Error: ${error.message}`);
+            }
+        }
+
+        async function getCurrentUser() {
+            try {
+                // Uncomment when AWS is configured
+                // const user = await AWS.Amplify.Auth.currentAuthenticatedUser();
+                // showStatus('auth-status', 'success', `Current user: ${user.username}`);
+                
+                showStatus('auth-status', 'info', 'No user (AWS not configured)');
+            } catch (error) {
+                showStatus('auth-status', 'info', 'No authenticated user');
+            }
+        }
+
+        async function signOut() {
+            try {
+                // Uncomment when AWS is configured
+                // await AWS.Amplify.Auth.signOut();
+                
+                showStatus('auth-status', 'success', 'Sign out successful (simulated)');
+            } catch (error) {
+                showStatus('auth-status', 'error', `Error: ${error.message}`);
+            }
+        }
+
+        function testStripe() {
+            // Stripe test (you'll need your publishable key)
+            const stripePublishableKey = 'pk_test_YOUR_STRIPE_KEY';
+            
+            showStatus('stripe-status', 'info', 
+                'Stripe integration not configured yet.\n' +
+                'You\'ll need to:\n' +
+                '1. Create Stripe account\n' +
+                '2. Get API keys\n' +
+                '3. Set up products/prices');
+        }
+
+        function showStatus(elementId, type, message) {
+            const statusEl = document.getElementById(elementId);
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

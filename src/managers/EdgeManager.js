@@ -27,8 +27,12 @@ export class EdgeManager {
 		
 		// Create edges
 		edgeDataArray.forEach((edgeData, _index) => {
-			const fromNode = nodeMap.get(edgeData.from);
-			const toNode = nodeMap.get(edgeData.to);
+			// Handle both formats: {from, to} and {src, dst}
+			const fromId = edgeData.from || edgeData.src;
+			const toId = edgeData.to || edgeData.dst;
+			
+			const fromNode = nodeMap.get(fromId);
+			const toNode = nodeMap.get(toId);
 			
 			if (fromNode && toNode) {
 				const edge = this.createEdge(fromNode, toNode, edgeData);
@@ -36,7 +40,7 @@ export class EdgeManager {
 				this.edgeGroup.add(edge);
 				
 				// Store in map for quick lookup
-				const key = `${edgeData.from}-${edgeData.to}`;
+				const key = `${fromId}-${toId}`;
 				this.edgeMap.set(key, edge);
 			}
 		});
@@ -58,9 +62,9 @@ export class EdgeManager {
 		const edgeColor = colorGenerator.getColorForType(edgeData.type || 'default');
 		const lineMaterial = new THREE.LineBasicMaterial({
 			color: edgeColor,
-			linewidth: 2,
+			linewidth: 3,
 			transparent: true,
-			opacity: VISUAL_CONFIG.edge.opacity,
+			opacity: VISUAL_CONFIG.edge.opacity * 1.5,
 			// Ensure lines render from all angles
 			depthWrite: true,
 			depthTest: true
@@ -72,11 +76,11 @@ export class EdgeManager {
 		edgeGroup.add(line);
 		
 		// 2. Create cylinder for better visibility from all angles
-		const cylinderGeometry = new THREE.CylinderGeometry(0.001, 0.001, 1, 6); // Ultra-thin lines
+		const cylinderGeometry = new THREE.CylinderGeometry(0.005, 0.005, 1, 8); // Thicker lines for visibility
 		const cylinderMaterial = new THREE.MeshBasicMaterial({
 			color: edgeColor,
 			transparent: true,
-			opacity: VISUAL_CONFIG.edge.opacity * 0.6, // Slightly more transparent
+			opacity: VISUAL_CONFIG.edge.opacity * 1.2, // More visible
 			side: THREE.DoubleSide // Visible from all angles
 		});
 		

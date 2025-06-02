@@ -437,14 +437,62 @@ class KuzuVRApp {
 		}
 		
 		// Listen for voice transcripts
-		window.addEventListener('voiceTranscript', (event) => {
+		window.addEventListener('voiceTranscript', async (event) => {
 			const transcript = event.detail.transcript;
 			logger.info('Voice transcript received:', transcript);
 			
-			// For now, just log it
-			// TODO: Send to GPT for Cypher generation
-			// TODO: Execute Cypher query
-			// TODO: Update graph visualization
+			// Import and use NaturalLanguageService
+			const { NaturalLanguageService } = await import('./services/NaturalLanguageService.js');
+			
+			if (!this.dataService.connected) {
+				logger.warn('No database connected for voice query');
+				if (this.voiceInput) {
+					this.voiceInput.showTranscriptText('Please connect to a database first');
+				}
+				return;
+			}
+			
+			try {
+				// Get schema for better query generation
+				const schemaResult = await this.dataService.getSchema();
+				const schema = schemaResult.success ? {
+					nodeTypes: schemaResult.schema.nodeTypes?.map(nt => nt.name) || [],
+					relationshipTypes: schemaResult.schema.relationshipTypes?.map(rt => rt.name) || []
+				} : null;
+				
+				// Use OpenAI API key from voice backend if available
+				const nlService = new NaturalLanguageService(null); // API key handled by backend
+				
+				// Check if this is a layout command vs query command
+				if (nlService.isLayoutCommand(transcript)) {
+					// Handle layout commands
+					await this.handleLayoutCommand(transcript);
+					return;
+				}
+				
+				// Convert to Cypher query
+				const cypherQuery = await nlService.convertToCypher(transcript, schema);
+				logger.info('Generated Cypher query:', cypherQuery);
+				
+				// Execute the query
+				const queryResult = await this.dataService.executeCypherQuery(cypherQuery);
+				
+				if (queryResult.success) {
+					// Update visualization with query results
+					await this.updateVisualizationFromQuery(queryResult, transcript);
+				} else {
+					logger.error('Query execution failed:', queryResult.error);
+					if (this.voiceInput) {
+						this.voiceInput.showTranscriptText(`Query failed: ${queryResult.error.message}`);
+					}
+				}
+				
+			} catch (error) {
+				logger.error('Voice query processing failed:', error);
+				if (this.voiceInput) {
+					this.voiceInput.showTranscriptText(`Error: ${error.message}`);
+				}
+			}
 		});
 		
 		// Log all gesture changes for debugging
@@ -477,6 +525,14 @@ class KuzuVRApp {
 				const edgesResult = await this.dataService.getEdges();
 					
 					if (nodesResult.success) {
+						// DEBUG: Log node types being loaded
+						const nodeTypeCount = {};
+						nodesResult.nodes.forEach(node => {
+							nodeTypeCount[node.type] = (nodeTypeCount[node.type] || 0) + 1;
+						});
+						console.log('🔍 DEBUG: Nodes being loaded:', nodeTypeCount);
+						console.log('🔍 DEBUG: Total nodes loaded:', nodesResult.nodes.length);
+						
 						// Transform nodes to expected format
 						const nodes = nodesResult.nodes.map((node, index) => ({
 							id: node.id || index,
@@ -507,7 +563,17 @@ class KuzuVRApp {
 							
 							// Create edges
 							if (edgesResult.success && edgesResult.edges) {
+								console.log('🔍 DEBUG: Total edges to create:', edgesResult.edges.length);
+								
+								// DEBUG: Count edge types
+								const edgeTypeCount = {};
+								edgesResult.edges.forEach(edge => {
+									edgeTypeCount[edge.type] = (edgeTypeCount[edge.type] || 0) + 1;
+								});
+								console.log('🔍 DEBUG: Edge types being created:', edgeTypeCount);
+								
 								this.edgeManager.createEdges(edgesResult.edges, this.nodeManager);
+								console.log('🔍 DEBUG: Edges created by EdgeManager:', this.edgeManager.edges.length);
 							}
 							
 							statusDiv.innerHTML = `✅ Sample database loaded!<br><small>${nodes.length} nodes and ${edgesResult.edges?.length || 0} relationships ready to explore</small>`;
@@ -992,6 +1058,80 @@ class KuzuVRApp {
 		
 		if (this.voiceInput) {
 			this.voiceInput.showTranscriptText('Applied force-directed layout');
+		}
+	}
+	
+	/**
+	 * Update the 3D visualization with results from a Cypher query
+	 */
+	async updateVisualizationFromQuery(queryResult, originalTranscript) {
+		logger.info('Updating visualization from query result');
+		
+		if (!queryResult.nodes || queryResult.nodes.length === 0) {
+			logger.warn('No nodes in query result');
+			if (this.voiceInput) {
+				this.voiceInput.showTranscriptText('No results found');
+			}
+			return;
+		}
+		
+		try {
+			// Clear existing visualization
+			if (this.nodeManager) {
+				this.nodeManager.clearNodes();
+			}
+			if (this.edgeManager) {
+				this.edgeManager.clearEdges();
+			}
+			
+			// Transform query result nodes to visualization format
+			const nodes = queryResult.nodes.map((node, index) => ({
+				id: node.id || node.properties?.id || index,
+				data: node.properties || {},
+				label: node.properties?.name || node.properties?.label || node.label || `Node ${index}`,
+				type: node.type || 'Unknown'
+			}));
+			
+			logger.info(`Creating visualization with ${nodes.length} nodes`);
+			
+			// Create nodes in 3D space
+			if (this.nodeManager) {
+				this.nodeManager.createNodes(nodes);
+			}
+			
+			// Update legend
+			if (this.uiManager && this.uiManager.legend && !this.isDesktopMode) {
+				this.uiManager.legend.updateNodeTypes(nodes);
+			} else if (this.isDesktopMode && window.updateDesktopLegend) {
+				window.updateDesktopLegend(nodes);
+			}
+			
+			// Create edges if available in query result
+			if (queryResult.relationships && queryResult.relationships.length > 0 && this.edgeManager) {
+				// Transform relationships to edge format
+				const edges = queryResult.relationships.map(rel => ({
+					from: rel.startNode || rel.src,
+					to: rel.endNode || rel.dst,
+					type: rel.type,
+					properties: rel.properties || {}
+				}));
+				
+				logger.info(`Creating ${edges.length} edges`);
+				this.edgeManager.createEdges(edges, this.nodeManager);
+			}
+			
+			// Show success message
+			if (this.voiceInput) {
+				this.voiceInput.showTranscriptText(`Found ${nodes.length} results for: "${originalTranscript}"`);
+			}
+			
+			logger.info('Query visualization update complete');
+			
+		} catch (error) {
+			logger.error('Failed to update visualization from query:', error);
+			if (this.voiceInput) {
+				this.voiceInput.showTranscriptText(`Error updating visualization: ${error.message}`);
+			}
 		}
 	}
 	

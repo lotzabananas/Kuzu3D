@@ -54,8 +54,8 @@ export const VISUAL_CONFIG = {
 	},
 	edge: {
 		defaultColor: 0x888888,     // Gray
-		width: 0.001,              // Ultra-thin lines
-		opacity: 0.6,              // More transparent
+		width: 0.005,              // Thicker lines for visibility
+		opacity: 0.8,              // More opaque for visibility
 		// Color palette for auto-generation (HSL-based for good distribution)
 		colorPalette: {
 			hueStart: 0,           // Starting hue (0-360)

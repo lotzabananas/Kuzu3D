@@ -32,6 +32,11 @@
 		"preview": "npm run build && npm run start"
 	},
 	"dependencies": {
+		"@aws-amplify/auth": "^6.0.0",
+		"@aws-amplify/core": "^6.0.0",
+		"@aws-amplify/storage": "^6.0.0",
+		"@stripe/stripe-js": "^2.0.0",
+		"aws-amplify": "^6.0.0",
 		"compression": "^1.8.0",
 		"cors": "^2.8.5",
 		"dotenv": "^16.5.0",
@@ -40,6 +45,7 @@
 		"kuzu": "^0.10.0",
 		"multer": "^2.0.0",
 		"openai": "^4.103.0",
+		"stripe": "^14.0.0",
 		"three": "0.165.0",
 		"three-mesh-ui": "^6.5.4"
 	}
